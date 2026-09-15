@@ -1,0 +1,222 @@
+# Publica master101 en Cloudflare y luego mide lo que publicó.
+#
+# El chat no alcanza api.cloudflare.com ni *.workers.dev: el proxy de salida
+# se lo rechaza. Aquí sí hay internet, así que todo lo que hay que saber se
+# mide aquí y se devuelve por el comentario del commit, que es el único canal
+# de vuelta que el chat puede leer (OPERAR.md §6).
+#
+# Orden: staging → medición → el panel manejado con un navegador contra
+# staging (crea y borra una empresa de prueba) → producción → medición de
+# producción (mirar, no tocar: ahí está forespot).
+#
+# Secretos del repositorio:
+#   CLOUDFLARE_API_TOKEN    Workers Scripts:Edit, Account Settings:Read,
+#                           User Details:Read
+#   CLOUDFLARE_ACCOUNT_ID
+#
+# Variables del repositorio (no son secretos, son correos):
+#   CORREO_SUPERADMIN       con qué cuenta se entra a staging como superadmin
+#                           (por omisión mike@forespot.com, la misma que la
+#                           prueba de humo de suite101-api)
+#   CORREO_CONTROL          una cuenta de staging que NO es superadmin (por
+#                           omisión el cliente de la org demo)
+
+name: Publicar master101
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'claude/**'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write          # para dejar el comentario en el commit
+
+concurrency:
+  group: despliegue-master101
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CORREO_SUPERADMIN: ${{ vars.CORREO_SUPERADMIN || 'mike@forespot.com' }}
+      CORREO_CONTROL: ${{ vars.CORREO_CONTROL || 'familia.ramirez@ejemplo.mx' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      # Sin esto wrangler falla con un error de autenticación que no dice qué
+      # hacer. Este paso sí lo dice, y el chat lo puede leer en el comentario
+      # del commit: el chat no lista ni lee secretos, sólo pregunta si están.
+      - name: Comprobar que hay con qué publicar
+        run: |
+          falta=""
+          [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || falta="$falta CLOUDFLARE_API_TOKEN"
+          [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ] || falta="$falta CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$falta" ]; then
+            {
+              echo "FALTA CON QUÉ PUBLICAR"
+              echo
+              echo "Secretos que el repositorio master101 no tiene:$falta"
+              echo
+              echo "Los pone Mike, una sola vez, en:"
+              echo "  github.com/mikebalcazar/master101/settings/secrets/actions"
+              echo "Son los MISMOS valores que ya tienen suite101-api, dash101 y peek101."
+              echo "El token necesita Workers Scripts:Edit, Account Settings:Read"
+              echo "y User Details:Read."
+              echo
+              echo "No se publico nada. El chat no lee ni lista secretos: solo"
+              echo "pregunta si estan, y este renglon es la respuesta."
+            } | tee /tmp/medido-staging.txt
+            echo "::error::Faltan secretos del repositorio master101:$falta. Los pone Mike en Settings - Secrets and variables - Actions; son los mismos que ya tienen suite101-api y peek101."
+            exit 1
+          fi
+          echo "los dos secretos están puestos"
+
+      - name: Que el JavaScript compile
+        run: |
+          set -euo pipefail
+          for f in public/app.js worker/index.js scripts/*.mjs pruebas/*.mjs; do
+            node --check "$f"
+          done
+          echo "todos los archivos pasan node --check"
+
+      - name: Sellar la portada con este commit
+        run: node scripts/sellar.mjs "${{ github.sha }}"
+
+      # ── staging ──────────────────────────────────────────────────────────
+      - name: Publicar staging
+        id: staging
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --env staging | tee /tmp/staging.txt
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/staging.txt | head -1)
+          [ -n "$url" ] || { echo 'no pude sacar la liga de la salida de wrangler' >&2; exit 1; }
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "staging publicado: $url"
+
+      - name: Medir staging
+        id: medir_staging
+        continue-on-error: true
+        env:
+          STAGING: ${{ steps.staging.outputs.url }}
+          VERSION_ESPERADA: ${{ github.sha }}
+        run: |
+          set -u
+          exec > >(tee /tmp/medido-staging.txt) 2>&1
+          node scripts/medir.mjs
+
+      - name: El panel manejado con un navegador, contra staging
+        id: navegador
+        continue-on-error: true
+        env:
+          BASE: ${{ steps.staging.outputs.url }}
+          API_ORIGEN: https://suite101-api-staging.mike-929.workers.dev
+        run: |
+          set -u
+          exec > >(tee /tmp/medido-navegador.txt) 2>&1
+          npx playwright install --with-deps chromium
+          node pruebas/panel.spec.mjs
+
+      # Si algo falló, el mensaje del Worker vive en sus logs, y ahí sólo llega
+      # este corredor.
+      - name: Leer los errores del Worker de staging
+        if: steps.medir_staging.outcome == 'failure' || steps.navegador.outcome == 'failure'
+        env:
+          STAGING: ${{ steps.staging.outputs.url }}
+        run: |
+          set -u
+          {
+            echo
+            echo "== Lo que dice el Worker de staging (wrangler tail) =="
+            npx wrangler tail master101-staging --env staging --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
+            TAIL=$!
+            sleep 8
+            curl -s -o /dev/null -w 'GET /  → %{http_code}\n' "$STAGING/"
+            curl -s -o /dev/null -w 'GET /s101/salud  → %{http_code}\n' "$STAGING/s101/salud"
+            sleep 6
+            kill $TAIL 2>/dev/null || true
+            wait $TAIL 2>/dev/null || true
+            python3 - <<'PY'
+          import json
+          vistos = 0
+          try:
+              for linea in open('/tmp/tail.jsonl'):
+                  linea = linea.strip()
+                  if not linea: continue
+                  try: e = json.loads(linea)
+                  except Exception: continue
+                  vistos += 1
+                  ev = e.get('event') or {}
+                  print(f"-- {ev.get('request',{}).get('method','?')} {ev.get('request',{}).get('url','?')}  →  {e.get('outcome')}")
+                  for x in e.get('exceptions', []):
+                      print('   EXCEPCION:', x.get('name'), x.get('message'))
+                  for l in e.get('logs', []):
+                      print('   log', l.get('level'), ' '.join(str(m) for m in l.get('message', []))[:1500])
+          except FileNotFoundError:
+              pass
+          if not vistos:
+              print('(wrangler tail no entregó eventos)')
+              try: print(open('/tmp/tail.err').read()[-1500:])
+              except Exception: pass
+          PY
+          } >> /tmp/medido-staging.txt 2>&1
+          tail -60 /tmp/medido-staging.txt
+
+      - name: Que staging mande
+        if: steps.medir_staging.outcome == 'failure' || steps.navegador.outcome == 'failure'
+        run: exit 1
+
+      # ── producción ───────────────────────────────────────────────────────
+      # Sólo si staging salió bien. En producción se mira, no se toca.
+      - name: Sellar y publicar producción
+        id: produccion
+        run: |
+          set -euo pipefail
+          node scripts/sellar.mjs "${{ github.sha }}"
+          npx wrangler deploy | tee /tmp/prod.txt
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/prod.txt | head -1)
+          [ -n "$url" ] || { echo 'no pude sacar la liga de la salida de wrangler' >&2; exit 1; }
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "producción publicada: $url"
+
+      - name: Medir producción
+        env:
+          PROD: ${{ steps.produccion.outputs.url }}
+          VERSION_ESPERADA: ${{ github.sha }}
+        run: |
+          set -u
+          exec > >(tee /tmp/medido-prod.txt) 2>&1
+          node scripts/medir.mjs
+
+      # Aquí está el canal de vuelta. El log de Actions no sirve: descargarlo
+      # redirige a un host que el proxy del chat también rechaza.
+      - name: Dejar lo medido en el commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -u
+          : > /tmp/salida.txt
+          for f in /tmp/medido-staging.txt /tmp/medido-navegador.txt /tmp/medido-prod.txt; do
+            [ -f "$f" ] && cat "$f" >> /tmp/salida.txt
+          done
+          [ -s /tmp/salida.txt ] || echo "No hubo salida que reportar: el flujo se cayó antes de medir." > /tmp/salida.txt
+          jq -Rs '{body: ("**master101 como Worker**\n\n```\n" + .[-60000:] + "\n```")}' /tmp/salida.txt > /tmp/comentario.json
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/commits/$SHA/comments" \
+            -d @/tmp/comentario.json -o /tmp/respuesta.json -w 'comentario: %{http_code}\n'
+          head -c 200 /tmp/respuesta.json || true

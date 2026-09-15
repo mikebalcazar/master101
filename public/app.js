@@ -1,0 +1,456 @@
+/* master101 — el panel del dueño de la suite.
+ *
+ * Cuatro pantallas sobre rutas que la API ya tiene: empresas (con los
+ * interruptores de apps y suspender), alta de empresa con su dueño, gente de
+ * una empresa, y el enlace a importar. Sólo entra un superadmin: `/s101/yo`
+ * tiene que traer `superadmin: true`; si no, la pantalla dice «esta cuenta no
+ * manda aquí» y no enseña nada.
+ *
+ * Todo pasa por `/s101/*`, que el Worker reenvía a `suite101-api` desde este
+ * mismo origen (decisión D1). El Worker pone `X-App: master101`; aquí no se
+ * manda.
+ *
+ * Regla de la casa: cambiar un interruptor hace PATCH y se repinta con lo que
+ * la API devuelve, nunca con lo que se cree. */
+
+const API = '/s101';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/** Las seis apps de una empresa, con la llave que usa `orgs.apps` en la API. */
+export const APPS = [
+  ['dash', 'dash101'], ['quell', 'quell101'], ['peek', 'peek101'],
+  ['cotizador', 'quote101'], ['roster', 'roster101'], ['nest', 'nest101'],
+];
+
+const ROLES = { owner: 'dueño', admin: 'administración', socio: 'socio', staff: 'oficina' };
+
+/** Los errores de la API, con palabras de quien administra. */
+const ERRORES = {
+  codigo_invalido: 'Ese código no es. Revisa el correo y vuelve a intentar.',
+  pin_invalido: 'Ese PIN no es.',
+  demasiados_intentos: 'Demasiados intentos. Espera un momento y vuelve a intentar.',
+  sin_permiso: 'Esa cuenta no manda aquí.',
+  sin_sesion: 'Tu sesión terminó. Vuelve a entrar.',
+  org_desconocida: 'Esa empresa ya no existe.',
+  datos_invalidos: 'Revisa lo que escribiste.',
+  correo_no_configurado: 'El envío de códigos no está disponible ahora. Intenta más tarde.',
+  sin_respuesta: 'La API no contestó. Vuelve a intentar.',
+};
+
+class ErrorApi extends Error {
+  constructor(error, estado, detalle) {
+    super(ERRORES[error] ?? `Algo no salió bien (${error}). Vuelve a intentar.`);
+    this.error = error; this.estado = estado; this.detalle = detalle;
+  }
+}
+
+async function pedir(ruta, opciones = {}) {
+  const r = await fetch(`${API}${ruta}`, {
+    method: opciones.method ?? 'GET',
+    headers: opciones.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: opciones.body ? JSON.stringify(opciones.body) : undefined,
+    credentials: 'include',
+  });
+  let cuerpo = null;
+  try { cuerpo = await r.json(); } catch { /* no vino JSON */ }
+  if (!r.ok || !cuerpo?.ok) throw new ErrorApi(cuerpo?.error ?? 'sin_respuesta', r.status, cuerpo?.detalle);
+  return cuerpo.data;
+}
+
+/* ─────────────── estado ─────────────── */
+
+let YO = null;          // lo que dijo /yo
+let EMPRESAS = [];      // lo último que contestó GET /admin/orgs
+let ORG = null;         // la empresa abierta en «gente»
+let correo = '';
+let modo = 'codigo';    // 'codigo' | 'pin'
+
+const VISTAS = ['v-correo', 'v-clave', 'v-nomanda', 'v-cargando', 'v-empresas', 'v-alta', 'v-gente'];
+function mostrar(cual) {
+  for (const v of VISTAS) $(v).hidden = v !== cual;
+  for (const b of document.querySelectorAll('#menu [data-ir]')) b.classList.toggle('activo', `v-${b.dataset.ir}` === cual);
+  window.scrollTo(0, 0);
+}
+
+function aviso(id, texto, tono = 'mal') {
+  const el = $(id);
+  el.className = `aviso ${tono}`;
+  el.textContent = texto;
+  el.hidden = !texto;
+}
+
+/* ─────────────── entrada ─────────────── */
+
+function pintarClave() {
+  const esCodigo = modo === 'codigo';
+  $('clave-t').textContent = esCodigo ? 'Tu código' : 'Tu PIN';
+  $('clave-p').textContent = esCodigo ? `Te lo mandamos a ${correo}. Vence en 10 minutos.` : `El PIN de ${correo}.`;
+  $('clave-l').textContent = esCodigo ? 'Código de 6 dígitos' : 'PIN de 6 dígitos';
+  $('clave').type = esCodigo ? 'text' : 'password';
+  $('clave').autocomplete = esCodigo ? 'one-time-code' : 'current-password';
+  $('cambiar-modo').textContent = esCodigo ? 'Entrar con mi PIN' : 'Mandarme un código';
+  $('reenviar').hidden = !esCodigo;
+  $('clave').value = '';
+  $('err-clave').textContent = '';
+  $('err-clave').classList.remove('bien');
+  $('clave').focus();
+}
+
+$('f-correo').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const c = $('correo').value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(c)) { $('err-correo').textContent = 'Escribe un correo válido.'; return; }
+  correo = c;
+  $('err-correo').textContent = '';
+  const b = $('b-correo'); b.disabled = true; b.textContent = 'Mandando…';
+  try {
+    await pedirCodigo();
+    modo = 'codigo';
+    mostrar('v-clave');
+    pintarClave();
+  } catch (e) {
+    $('err-correo').textContent = e.message;
+  } finally { b.disabled = false; b.textContent = 'Continuar'; }
+};
+
+// En staging la API devuelve `codigo_prueba`; la prueba lo lee desde fuera.
+// Aquí no se enseña ni se guarda.
+const pedirCodigo = () => pedir('/auth/codigo', { method: 'POST', body: { correo } });
+
+$('f-clave').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const v = $('clave').value.trim();
+  if (!/^\d{6}$/.test(v)) { $('err-clave').textContent = modo === 'codigo' ? 'El código son 6 dígitos.' : 'El PIN son 6 dígitos.'; return; }
+  const b = $('b-clave'); b.disabled = true; b.textContent = 'Entrando…';
+  $('err-clave').textContent = '';
+  try {
+    await pedir('/auth/entrar', { method: 'POST', body: modo === 'codigo' ? { correo, codigo: v } : { correo, pin: v } });
+    await entrar();
+  } catch (e) {
+    let msg = e.message;
+    const quedan = e.detalle?.intentos_restantes;
+    if (e.error === 'codigo_invalido' && typeof quedan === 'number') {
+      msg = quedan > 0 ? `Ese código no es. Te quedan ${quedan} ${quedan === 1 ? 'intento' : 'intentos'}.` : 'Ese código no es y se acabaron los intentos. Pide uno nuevo.';
+    }
+    $('err-clave').textContent = msg;
+    $('clave').value = '';
+    $('clave').focus();
+  } finally { b.disabled = false; b.textContent = 'Entrar'; }
+};
+
+$('cambiar-modo').onclick = async () => {
+  if (modo === 'codigo') { modo = 'pin'; pintarClave(); return; }
+  modo = 'codigo';
+  try { await pedirCodigo(); pintarClave(); }
+  catch (e) { modo = 'pin'; $('err-clave').textContent = e.message; }
+};
+
+$('reenviar').onclick = async () => {
+  const b = $('reenviar'); b.disabled = true;
+  try {
+    await pedirCodigo();
+    $('err-clave').classList.add('bien');
+    $('err-clave').textContent = 'Te mandamos otro código.';
+  } catch (e) { $('err-clave').classList.remove('bien'); $('err-clave').textContent = e.message; }
+  finally { b.disabled = false; }
+};
+
+$('otro-correo').onclick = () => {
+  $('err-correo').textContent = '';
+  $('err-clave').textContent = '';
+  $('clave').value = '';
+  mostrar('v-correo');
+  $('correo').focus();
+};
+
+async function salir() {
+  try { await pedir('/auth/salir', { method: 'POST' }); } catch { /* la sesión ya no estaba */ }
+  YO = null; EMPRESAS = []; ORG = null;
+  $('quien').hidden = true;
+  $('menu').hidden = true;
+  mostrar('v-correo');
+}
+$('salir').onclick = salir;
+$('nomanda-salir').onclick = salir;
+
+/* ─────────────── entrar: sólo superadmin ─────────────── */
+
+async function entrar() {
+  mostrar('v-cargando');
+  try {
+    YO = await pedir('/yo');
+  } catch (e) {
+    $('err-clave').textContent = e.message;
+    mostrar(correo ? 'v-clave' : 'v-correo');
+    return;
+  }
+  if (!YO.superadmin) {
+    // Entró bien, pero no manda aquí. No se pide nada más a la API: no hay
+    // nada que enseñarle.
+    $('nomanda-correo').textContent = YO.usuario?.correo ?? correo;
+    mostrar('v-nomanda');
+    return;
+  }
+  $('quien-n').textContent = YO.usuario.correo;
+  $('quien').hidden = false;
+  $('menu').hidden = false;
+  await irAEmpresas();
+}
+
+/* ─────────────── empresas ─────────────── */
+
+async function cargarEmpresas() {
+  const d = await pedir('/admin/orgs');
+  EMPRESAS = [...(d.filas ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  return EMPRESAS;
+}
+
+async function irAEmpresas() {
+  aviso('e-aviso', '');
+  mostrar('v-empresas');
+  $('e-filas').innerHTML = '<tr><td colspan="10" class="nota">Cargando…</td></tr>';
+  try {
+    await cargarEmpresas();
+    pintarEmpresas();
+  } catch (e) {
+    $('e-filas').innerHTML = '';
+    aviso('e-aviso', e.message);
+  }
+}
+
+function pintarEmpresas() {
+  const activas = EMPRESAS.filter((o) => o.activa).length;
+  $('e-sub').textContent = `${EMPRESAS.length} empresa${EMPRESAS.length === 1 ? '' : 's'} · ${activas} activa${activas === 1 ? '' : 's'}`;
+  if (!EMPRESAS.length) {
+    $('e-filas').innerHTML = '<tr><td colspan="10" class="nota">Todavía no hay ninguna empresa. Da de alta la primera.</td></tr>';
+    return;
+  }
+  $('e-filas').innerHTML = EMPRESAS.map((o) => `
+    <tr data-org="${esc(o.id)}" class="${o.activa ? '' : 'inactiva'}">
+      <td><div class="n">${esc(o.nombre)}</div><div class="m mono">${esc(o.id)} · ${esc(o.moneda || 'MXN')}</div></td>
+      <td>${o.plan ? esc(o.plan) : '<span class="nota">—</span>'}</td>
+      ${APPS.map(([k, nombre]) => `<td class="app"><label class="sw" title="${esc(nombre)} · ${esc(o.nombre)}"><input type="checkbox" data-app="${k}" data-org="${esc(o.id)}"${o.apps?.[k] ? ' checked' : ''}${o.activa ? '' : ' disabled'}><i></i></label></td>`).join('')}
+      <td>${o.activa ? '<span class="chip ok">activa</span>' : '<span class="chip mal">suspendida</span>'}</td>
+      <td><div class="acciones">
+        <button class="btn suave chico" data-gente="${esc(o.id)}">Gente</button>
+        <button class="btn ${o.activa ? 'peligro' : ''} chico" data-suspender="${esc(o.id)}">${o.activa ? 'Suspender' : 'Reactivar'}</button>
+      </div></td>
+    </tr>`).join('');
+
+  for (const sw of $('e-filas').querySelectorAll('input[data-app]')) sw.onchange = () => cambiarApp(sw);
+  for (const b of $('e-filas').querySelectorAll('[data-suspender]')) b.onclick = () => suspender(b.dataset.suspender, b);
+  for (const b of $('e-filas').querySelectorAll('[data-gente]')) b.onclick = () => irAGente(b.dataset.gente);
+}
+
+/** Sustituye una empresa en la lista con lo que contestó la API y repinta. */
+function reemplaza(org) {
+  const i = EMPRESAS.findIndex((o) => o.id === org.id);
+  if (i >= 0) EMPRESAS[i] = org; else EMPRESAS.push(org);
+  pintarEmpresas();
+}
+
+async function cambiarApp(sw) {
+  const o = EMPRESAS.find((x) => x.id === sw.dataset.org);
+  if (!o) return;
+  const apps = { ...(o.apps || {}), [sw.dataset.app]: sw.checked };
+  sw.disabled = true;
+  aviso('e-aviso', '');
+  try {
+    // Lo que se manda es el mapa completo: la API guarda `apps` entero.
+    const org = await pedir(`/admin/orgs/${encodeURIComponent(o.id)}`, { method: 'PATCH', body: { apps } });
+    reemplaza(org);
+  } catch (e) {
+    aviso('e-aviso', `No se pudo cambiar ${sw.dataset.app} en ${o.nombre}: ${e.message}`);
+    pintarEmpresas();   // se regresa a lo que la API sí tiene
+  }
+}
+
+async function suspender(id, boton) {
+  const o = EMPRESAS.find((x) => x.id === id);
+  if (!o) return;
+  if (o.activa && !confirm(`¿Suspender a ${o.nombre}?\n\nToda su gente recibe «pausada» en todas las apps hasta que la reactives. Sus datos no se tocan.`)) return;
+  boton.disabled = true;
+  aviso('e-aviso', '');
+  try {
+    const org = await pedir(`/admin/orgs/${encodeURIComponent(id)}`, { method: 'PATCH', body: { activa: !o.activa } });
+    reemplaza(org);
+    aviso('e-aviso', org.activa ? `${org.nombre} está activa otra vez.` : `${org.nombre} quedó suspendida.`, 'bien');
+  } catch (e) {
+    boton.disabled = false;
+    aviso('e-aviso', e.message);
+  }
+}
+
+$('e-refrescar').onclick = irAEmpresas;
+$('e-nueva').onclick = () => irAAlta();
+for (const b of document.querySelectorAll('#menu [data-ir]')) {
+  b.onclick = () => (b.dataset.ir === 'alta' ? irAAlta() : irAEmpresas());
+}
+
+/* ─────────────── alta de empresa ─────────────── */
+
+/** El identificador sale del nombre: sin acentos, minúsculas, guiones. */
+export function slugDe(nombre) {
+  return String(nombre || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+const SLUG = /^[a-z0-9-]{2,40}$/;
+
+let idTocado = false;
+$('a-nombre').oninput = () => { if (!idTocado) $('a-id').value = slugDe($('a-nombre').value); };
+$('a-id').oninput = () => { idTocado = $('a-id').value !== ''; };
+
+function irAAlta() {
+  $('f-alta').reset();
+  idTocado = false;
+  $('err-alta').textContent = '';
+  $('a-listo').hidden = true;
+  $('f-alta').hidden = false;
+  mostrar('v-alta');
+  $('a-nombre').focus();
+}
+$('a-cancelar').onclick = irAEmpresas;
+
+$('f-alta').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const nombre = $('a-nombre').value.trim();
+  const id = $('a-id').value.trim().toLowerCase();
+  const dueno = $('a-dueno').value.trim().toLowerCase();
+  const errores = [];
+  if (!nombre) errores.push('el nombre');
+  if (!SLUG.test(id)) errores.push('el identificador (minúsculas, números y guiones, de 2 a 40)');
+  if (!/^\S+@\S+\.\S+$/.test(dueno)) errores.push('el correo del dueño');
+  if (errores.length) { $('err-alta').textContent = `Revisa ${errores.join(', ')}.`; return; }
+
+  const apps = {};
+  for (const c of $('f-alta').querySelectorAll('input[data-app]')) apps[c.dataset.app] = c.checked;
+  const b = $('b-alta'); b.disabled = true; b.textContent = 'Creando…';
+  $('err-alta').textContent = '';
+  try {
+    // Primero la empresa (y su base, que la API crea al vuelo); luego su dueño.
+    const creada = await pedir('/admin/orgs', { method: 'POST', body: { id, nombre, plan: $('a-plan').value.trim() || undefined, moneda: $('a-moneda').value, apps } });
+    let miembro = null;
+    let fallaDueno = null;
+    try {
+      miembro = await pedir(`/admin/orgs/${encodeURIComponent(id)}/miembros`, { method: 'POST', body: { correo: dueno, nombre: $('a-dueno-nombre').value.trim() || undefined, rol: 'owner' } });
+    } catch (e) { fallaDueno = e; }
+
+    const org = creada.org ?? {};
+    const prendidas = APPS.filter(([k]) => org.apps?.[k]).map(([, n]) => n);
+    $('f-alta').hidden = true;
+    $('a-listo').innerHTML = `<b>${esc(org.nombre)}</b> (<span class="mono">${esc(org.id)}</span>) quedó creada, con su base en la versión ${esc(creada.org_db_version)}.<br>`
+      + (prendidas.length ? `Apps prendidas: ${esc(prendidas.join(', '))}.` : 'Ninguna app prendida todavía.') + '<br>'
+      + (miembro
+        ? `Entra su dueño con <b>${esc(miembro.correo)}</b> (rol ${esc(ROLES[miembro.rol] || miembro.rol)}): le llega un código a ese correo en cualquiera de sus apps.`
+        : `<span style="color:var(--alerta)">La empresa se creó pero el dueño no: ${esc(fallaDueno?.message || '')}. Agrégalo desde «Gente».</span>`)
+      + `<div class="acciones" style="margin-top:12px"><button class="btn suave chico" id="a-ver-gente">Ver su gente</button><button class="btn chico" id="a-ver-empresas">Ir a empresas</button></div>`;
+    $('a-listo').hidden = false;
+    $('a-ver-gente').onclick = () => irAGente(id);
+    $('a-ver-empresas').onclick = irAEmpresas;
+    await cargarEmpresas().catch(() => {});
+  } catch (e) {
+    const d = e.detalle || {};
+    $('err-alta').textContent = d.id === 'ya existe' ? `Ya hay una empresa con el identificador «${id}». Escoge otro.`
+      : d.id ? `El identificador no sirve: ${d.id}.` : e.message;
+  } finally { b.disabled = false; b.textContent = 'Crear la empresa'; }
+};
+
+/* ─────────────── gente de una empresa ─────────────── */
+
+async function irAGente(id) {
+  ORG = EMPRESAS.find((o) => o.id === id) || { id, nombre: id };
+  aviso('g-aviso', '');
+  $('g-id').textContent = ORG.id;
+  $('g-nombre').textContent = ORG.nombre;
+  $('g-sub').textContent = 'Cargando…';
+  $('g-filas').innerHTML = '';
+  $('f-gente').reset();
+  $('err-gente').textContent = '';
+  mostrar('v-gente');
+  await cargarGente();
+}
+
+async function cargarGente() {
+  try {
+    const d = await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros`);
+    const filas = [...(d.filas ?? [])].sort((a, b) => a.correo.localeCompare(b.correo));
+    $('g-sub').textContent = `${filas.length} persona${filas.length === 1 ? '' : 's'} con acceso`;
+    $('g-filas').innerHTML = filas.length ? filas.map((m) => `
+      <tr>
+        <td class="mono">${esc(m.correo)}</td>
+        <td>${m.nombre ? esc(m.nombre) : '<span class="nota">—</span>'}</td>
+        <td><span class="chip ${m.rol === 'owner' ? 'marca' : ''}">${esc(ROLES[m.rol] || m.rol)}</span></td>
+        <td><div class="acciones"><button class="btn peligro chico" data-quitar="${esc(m.usuario_id)}" data-correo="${esc(m.correo)}">Quitar</button></div></td>
+      </tr>`).join('') : '<tr><td colspan="4" class="nota">Nadie tiene acceso todavía.</td></tr>';
+    for (const b of $('g-filas').querySelectorAll('[data-quitar]')) b.onclick = () => pedirConfirmacion(b.dataset.quitar, b.dataset.correo);
+  } catch (e) {
+    $('g-sub').textContent = '';
+    aviso('g-aviso', e.message);
+  }
+}
+
+$('g-volver').onclick = irAEmpresas;
+
+$('f-gente').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const c = $('p-correo').value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(c)) { $('err-gente').textContent = 'Escribe un correo válido.'; return; }
+  const b = $('b-gente'); b.disabled = true; b.textContent = 'Agregando…';
+  $('err-gente').textContent = '';
+  try {
+    await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros`, { method: 'POST', body: { correo: c, nombre: $('p-nombre').value.trim() || undefined, rol: $('p-rol').value } });
+    $('f-gente').reset();
+    aviso('g-aviso', `${c} ya tiene acceso a ${ORG.nombre}.`, 'bien');
+    await cargarGente();
+  } catch (e) {
+    $('err-gente').textContent = e.message;
+  } finally { b.disabled = false; b.textContent = 'Agregar'; }
+};
+
+/* Quitar a alguien pide escribir su correo tal cual: es la confirmación que
+ * no se da por reflejo. */
+let porQuitar = null;
+function pedirConfirmacion(usuario_id, correoDe) {
+  porQuitar = { usuario_id, correo: correoDe };
+  $('q-empresa').textContent = ORG.nombre;
+  $('q-correo').textContent = correoDe;
+  $('q-escrito').value = '';
+  $('q-quitar').disabled = true;
+  $('velo').hidden = false;
+  $('q-escrito').focus();
+}
+$('q-escrito').oninput = () => { $('q-quitar').disabled = $('q-escrito').value.trim().toLowerCase() !== (porQuitar?.correo ?? '#'); };
+$('q-cancelar').onclick = () => { $('velo').hidden = true; porQuitar = null; };
+$('q-quitar').onclick = async () => {
+  if (!porQuitar) return;
+  const b = $('q-quitar'); b.disabled = true; b.textContent = 'Quitando…';
+  try {
+    await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros/${encodeURIComponent(porQuitar.usuario_id)}`, { method: 'DELETE' });
+    $('velo').hidden = true;
+    aviso('g-aviso', `${porQuitar.correo} ya no entra a ${ORG.nombre}.`, 'bien');
+    porQuitar = null;
+    await cargarGente();
+  } catch (e) {
+    aviso('g-aviso', e.message);
+    $('velo').hidden = true;
+  } finally { b.textContent = 'Quitar'; }
+};
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('velo').hidden) $('q-cancelar').click(); });
+
+/* ─────────────── arranque ───────────────
+ * Si la cookie todavía vive, se entra directo. Si venció, se pide el correo
+ * sin enseñar ningún error: no falló nada, sólo pasó el tiempo. */
+
+(async () => {
+  try {
+    await pedir('/yo');
+    await entrar();
+  } catch {
+    mostrar('v-correo');
+  }
+})();

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="master101-version" content="dev">
+<title>master101 · Suite 101</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Ccircle cx='15' cy='15' r='15' fill='%23122733'/%3E%3Ctext x='15' y='20' text-anchor='middle' font-family='sans-serif' font-weight='800' font-size='12' fill='%23fff'%3E101%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header class="barra">
+  <div class="logo">
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="14" fill="#fff"/><text x="15" y="20" text-anchor="middle" font-family="Raleway,sans-serif" font-weight="700" font-size="12.5" fill="#122733">101</text></svg>
+    master101<span class="sub">el panel de la suite</span>
+  </div>
+  <nav class="menu" id="menu" hidden>
+    <button data-ir="empresas" class="activo">Empresas</button>
+    <button data-ir="alta">Alta de empresa</button>
+    <a href="/s101/admin/importar" id="liga-importar">Importar</a>
+  </nav>
+  <div class="quien" id="quien" hidden><span id="quien-n"></span><button id="salir">Salir</button></div>
+</header>
+
+<!-- ENTRADA · el correo -->
+<section class="login" id="v-correo">
+  <form id="f-correo" novalidate>
+    <div><h1>master101</h1><p>El panel del dueño de la suite. Sólo entra quien manda aquí.</p></div>
+    <label for="correo">Tu correo<input type="email" id="correo" autocomplete="username" inputmode="email" enterkeyhint="next" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="tu@correo.com" required></label>
+    <div class="err" id="err-correo"></div>
+    <button class="btn" type="submit" id="b-correo">Continuar</button>
+    <p class="nota">Te mandamos un código de 6 dígitos. Si ya tienes PIN, también puedes entrar con él.</p>
+  </form>
+</section>
+
+<!-- ENTRADA · el código o el PIN -->
+<section class="login" id="v-clave" hidden>
+  <form id="f-clave" novalidate>
+    <div><h1 id="clave-t">Tu código</h1><p id="clave-p"></p></div>
+    <label for="clave"><span id="clave-l">Código de 6 dígitos</span>
+      <input type="text" id="clave" class="pin num" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" enterkeyhint="go" required>
+    </label>
+    <div class="err" id="err-clave"></div>
+    <button class="btn" type="submit" id="b-clave">Entrar</button>
+    <div class="opciones">
+      <button type="button" class="volver" id="otro-correo">Usar otro correo</button>
+      <button type="button" class="volver" id="cambiar-modo"></button>
+    </div>
+    <button type="button" class="volver" id="reenviar" hidden>Reenviar el código</button>
+  </form>
+</section>
+
+<!-- Entró, pero no manda aquí -->
+<section class="login" id="v-nomanda" hidden>
+  <div class="tarjeta-sola">
+    <h1>Esta cuenta no manda aquí</h1>
+    <p>Entraste bien, pero <b id="nomanda-correo"></b> no es una cuenta de dueño de la suite. Aquí no hay nada que enseñarte.</p>
+    <button class="btn" type="button" id="nomanda-salir">Salir</button>
+  </div>
+</section>
+
+<div class="wrap" id="v-cargando" hidden><p class="nota">Cargando…</p></div>
+
+<!-- EMPRESAS -->
+<main class="wrap" id="v-empresas" hidden>
+  <div class="cab">
+    <div><p class="eyebrow">Suite 101</p><h1>Empresas</h1><div class="sub" id="e-sub"></div></div>
+    <div class="acciones"><button class="btn suave" id="e-refrescar">↻ Actualizar</button><button class="btn" id="e-nueva">+ Alta de empresa</button></div>
+  </div>
+  <div class="aviso" id="e-aviso" hidden></div>
+  <div class="tabla"><table id="e-tabla">
+    <thead><tr>
+      <th>Empresa</th><th>Plan</th>
+      <th class="app">dash</th><th class="app">quell</th><th class="app">peek</th><th class="app">cotizador</th><th class="app">roster</th><th class="app">nest</th>
+      <th>Estado</th><th></th>
+    </tr></thead>
+    <tbody id="e-filas"></tbody>
+  </table></div>
+  <p class="nota">Cada interruptor prende o apaga esa app para esa empresa en cuanto lo tocas; la tabla se repinta con lo que la API contesta. Una empresa suspendida recibe «pausada» en todas sus apps.</p>
+</main>
+
+<!-- ALTA DE EMPRESA -->
+<main class="wrap" id="v-alta" hidden>
+  <div class="cab"><div><p class="eyebrow">Suite 101</p><h1>Alta de empresa</h1><div class="sub">Se crea la empresa, su base y su dueño, en ese orden.</div></div></div>
+  <form class="forma" id="f-alta" novalidate>
+    <div class="dos">
+      <label for="a-nombre">Nombre de la empresa<input id="a-nombre" autocomplete="organization" placeholder="Muebles Ramírez" required></label>
+      <label for="a-id">Identificador<input id="a-id" autocapitalize="off" spellcheck="false" placeholder="muebles-ramirez" pattern="[a-z0-9-]{2,40}" required><span class="pista">Sale del nombre. Sólo minúsculas, números y guiones, de 2 a 40. No se cambia después: es el nombre de su base.</span></label>
+    </div>
+    <div class="dos">
+      <label for="a-moneda">Moneda<select id="a-moneda"><option value="MXN" selected>MXN · pesos</option><option value="USD">USD · dólares</option></select></label>
+      <label for="a-plan">Plan <span class="opc">(etiqueta, por ahora)</span><input id="a-plan" placeholder="básico"></label>
+    </div>
+    <fieldset class="apps-ini">
+      <legend>Apps que arrancan prendidas</legend>
+      <label><input type="checkbox" data-app="dash" checked> dash101 · finanzas</label>
+      <label><input type="checkbox" data-app="quell" checked> quell101 · obra</label>
+      <label><input type="checkbox" data-app="peek" checked> peek101 · portal del cliente</label>
+      <label><input type="checkbox" data-app="cotizador" checked> quote101 · cotizaciones</label>
+      <label><input type="checkbox" data-app="roster"> roster101 · expedientes</label>
+      <label><input type="checkbox" data-app="nest"> nest101 · despiece</label>
+    </fieldset>
+    <div class="dos">
+      <label for="a-dueno">Correo del dueño<input id="a-dueno" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="dueno@empresa.mx" required><span class="pista">Queda como <b>owner</b> de la empresa. Entra a sus apps con ese correo.</span></label>
+      <label for="a-dueno-nombre">Nombre del dueño <span class="opc">(opcional)</span><input id="a-dueno-nombre" autocomplete="off"></label>
+    </div>
+    <div class="err" id="err-alta"></div>
+    <div class="acciones"><button class="btn suave" type="button" id="a-cancelar">Cancelar</button><button class="btn" type="submit" id="b-alta">Crear la empresa</button></div>
+  </form>
+  <div class="aviso bien" id="a-listo" hidden></div>
+</main>
+
+<!-- GENTE DE UNA EMPRESA -->
+<main class="wrap" id="v-gente" hidden>
+  <button class="volver" id="g-volver">← Empresas</button>
+  <div class="cab" style="margin-top:14px">
+    <div><p class="eyebrow" id="g-id"></p><h1 id="g-nombre"></h1><div class="sub" id="g-sub"></div></div>
+  </div>
+  <div class="aviso" id="g-aviso" hidden></div>
+  <div class="tabla"><table>
+    <thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th></th></tr></thead>
+    <tbody id="g-filas"></tbody>
+  </table></div>
+  <h2 class="h2">Agregar a alguien</h2>
+  <form class="forma" id="f-gente" novalidate>
+    <div class="tres">
+      <label for="p-correo">Correo<input id="p-correo" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false" required></label>
+      <label for="p-nombre">Nombre <span class="opc">(opcional)</span><input id="p-nombre" autocomplete="off"></label>
+      <label for="p-rol">Rol<select id="p-rol"><option value="owner">owner · dueño</option><option value="admin" selected>admin · administración</option><option value="socio">socio</option><option value="staff">staff · oficina</option></select></label>
+    </div>
+    <div class="err" id="err-gente"></div>
+    <div class="acciones"><button class="btn" type="submit" id="b-gente">Agregar</button></div>
+  </form>
+</main>
+
+<!-- CONFIRMAR QUITAR A ALGUIEN -->
+<div class="velo" id="velo" hidden>
+  <div class="dialogo" role="dialog" aria-modal="true" aria-labelledby="q-titulo">
+    <h2 id="q-titulo">Quitar a esta persona</h2>
+    <p>Deja de entrar a <b id="q-empresa"></b>. Sus datos no se tocan. Para confirmar, escribe su correo tal cual:</p>
+    <p class="mono" id="q-correo"></p>
+    <input id="q-escrito" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="escribe el correo">
+    <div class="acciones"><button class="btn suave" type="button" id="q-cancelar">Cancelar</button><button class="btn peligro" type="button" id="q-quitar" disabled>Quitar</button></div>
+  </div>
+</div>
+
+<footer class="pie">master101 · el panel del dueño de la suite 101 · no lo ve ningún cliente</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

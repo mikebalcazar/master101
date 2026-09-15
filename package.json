@@ -1,0 +1,16 @@
+{
+  "name": "master101",
+  "version": "0.1.0",
+  "private": true,
+  "description": "El panel del dueño de la suite 101: alta de empresas cliente, prender y apagar sus apps, su gente, suspender. Un Worker de Cloudflare que sirve un HTML y le habla a suite101-api por dentro.",
+  "type": "module",
+  "scripts": {
+    "banco": "node pruebas/servidor.mjs --falso",
+    "prueba": "node pruebas/panel.spec.mjs",
+    "medir": "node scripts/medir.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0",
+    "wrangler": "^4.131.1"
+  }
+}
