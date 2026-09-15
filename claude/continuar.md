@@ -42,8 +42,18 @@ devuelve `codigo_prueba`.
   reactiva.
 - «plan» es texto libre; el arranque lo deja para que Mike decida.
 
-## Pendientes (decide Mike, del arranque §5)
+## 0.2.0 (15-sep): lo que Mike decidió, una pregunta por vez
 
-Gestión de superadmins, bitácora de cambios (`quien, org, campo, antes,
-despues, cuando`) y conteos por empresa. Los tres son cambios a la API: se
-proponen en el muro (D4) antes de tocarla.
+Contrato 0.5.0 de la API (suite101-api PR #43, muro `0420-jr`): superadmins
+por ruta (`/admin/superadmins`, candados `ultimo_superadmin` y `a_ti_mismo`),
+`bitacora_admin` (la escribe la API en PATCH de org, altas y bajas de gente y
+de superadmins; se lee en `/admin/bitacora` y `/admin/orgs/:o/bitacora`), y
+`personas` + `ultima_entrada` en `GET /admin/orgs`. master101 0.2.0 los
+enseña: vista Superadmins, columnas Gente y Última entrada, bitácora en la
+vista de cada empresa. «plan» se queda como etiqueta. La API de mentiras del
+banco (`pruebas/servidor.mjs --falso`) imita todo eso, incluido que
+`ultima_entrada` sale de las sesiones de los miembros.
+
+Las 105 orgs de humo de staging las barrió `pruebas/humo.mjs` de la API en
+su primera corrida con 0.5.0 (107 borradas); desde entonces cada corrida
+limpia lo suyo.

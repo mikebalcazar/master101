@@ -136,7 +136,12 @@ async function staging() {
   const filas = lista.cuerpo?.filas ?? [];
   rev(lista.estado === 200, '/s101/admin/orgs contesta al superadmin', `${lista.estado} · ${filas.length} empresa(s)`);
   rev(filas.some((o) => o.id === 'demo'), 'y trae la org demo', filas.map((o) => o.id).join(', '));
-  linea(`       ${filas.map((o) => `${o.id}${o.activa ? '' : ' (suspendida)'}`).join(' · ')}`);
+  linea(`       ${filas.map((o) => `${o.id}${o.activa ? '' : ' (suspendida)'} · ${o.personas ?? '?'} persona(s)`).join(' · ')}`);
+  rev(filas.every((o) => typeof o.personas === 'number' && 'ultima_entrada' in o), 'cada empresa trae personas y ultima_entrada (contrato 0.5.0)');
+  const supers = await traer(STAGING, '/s101/admin/superadmins', { galleta: s.galleta });
+  rev(supers.estado === 200 && (supers.cuerpo?.filas ?? []).some((x) => x.correo === CORREO_SUPER), '/s101/admin/superadmins trae al superadmin', `${supers.cuerpo?.total ?? supers.estado}`);
+  const bitacora = await traer(STAGING, '/s101/admin/bitacora', { galleta: s.galleta });
+  rev(bitacora.estado === 200 && Array.isArray(bitacora.cuerpo?.filas), '/s101/admin/bitacora contesta', `${bitacora.cuerpo?.total ?? bitacora.estado} renglón(es)`);
 
   // El control: quien no es superadmin recibe 403 en /admin.
   const c = await entrar(STAGING, CORREO_CONTROL);

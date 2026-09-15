@@ -25,6 +25,14 @@ una herramienta para dos personas.
    escribiendo el correo tal cual.
 4. **Importar.** Un enlace a `/s101/admin/importar`, la página que ya vive en
    la API.
+5. **Superadmins** (0.2.0). Quién manda en este panel: lista, agregar por
+   correo, quitar escribiendo el correo. La API pone los candados: el último
+   no se quita, nadie se quita a sí mismo.
+
+Desde 0.2.0 (contrato 0.5.0 de la API) la tabla de empresas trae cuánta gente
+tiene cada una y la última entrada, y la vista de una empresa enseña la
+**bitácora de cambios**: quién prendió o apagó qué, quién la suspendió, quién
+agregó o quitó gente. La escribe la API sola.
 
 Sólo entra un superadmin: `/s101/yo` tiene que traer `superadmin: true`. Si
 no, la pantalla dice «esta cuenta no manda aquí» y no pide nada más.
@@ -49,5 +57,4 @@ Eso mismo corre en `.github/workflows/publicar.yml` después de publicar
 staging y antes de publicar producción; lo medido queda como comentario del
 commit. En producción sólo se mira: nunca se entra ni se escribe.
 
-Lo que no existe todavía en la API (propuesto en el arranque, decide Mike):
-gestión de superadmins, bitácora de quién cambió qué, conteos por empresa.
+«plan» sigue siendo una etiqueta de texto (decisión de Mike, 15-sep).

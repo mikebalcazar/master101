@@ -54,6 +54,16 @@ export function apiFalsa() {
   const codigos = new Map();    // correo → codigo
   const accesos = new Map([['u-cliente', { org_id: 'demo', tipo: 'cliente', ref_id: 'c1' }]]);
   const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', roster101: 'roster', nest101: 'nest' };
+  const supers = new Set(['u-duena']);
+  const bitacora = [];   // contrato 0.5.0: la escribe la API sola
+  let nb = 0;
+  const apunta = (quien, org_id, campo, antes, despues) => bitacora.unshift({ id: ++nb, cuando: new Date().toISOString(), quien, org_id, campo, antes: antes ?? null, despues: despues ?? null });
+  const entradas = new Map();   // usuario_id → última sesión abierta (ISO), como `sesiones.creado_at`
+  const conConteos = (o) => {
+    const lista = miembros.get(o.id) || [];
+    const ultimas = lista.map((m) => entradas.get(m.usuario_id)).filter(Boolean).sort();
+    return { ...o, personas: lista.length, ultima_entrada: ultimas.length ? ultimas[ultimas.length - 1] : null };
+  };
   let n = 0;
 
   const ok = (data, estado = 200, cabeceras = {}) => ({ estado, cuerpo: { ok: true, data }, cabeceras });
@@ -89,13 +99,14 @@ export function apiFalsa() {
       } else return err('datos_invalidos', 400, { falta: 'codigo o pin' });
       const c = `ses-${++n}-${Math.random().toString(36).slice(2)}`;
       sesiones.set(c, u.id);
+      entradas.set(u.id, new Date().toISOString());
       return ok({ usuario: u, vive_segundos: 3600 }, 200, { 'Set-Cookie': `s101=${c}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=3600` });
     }
     if (p === '/auth/salir' && metodo === 'POST') { if (galleta) sesiones.delete(galleta); return ok({ cerrada: true }, 200, { 'Set-Cookie': 's101=; Path=/; Max-Age=0' }); }
 
     if (!uid) return err('sin_sesion', 401);
     const yo = usuarios.get(uid);
-    const superadmin = yo.correo === SUPER;
+    const superadmin = supers.has(uid);
 
     if (p === '/yo') {
       return ok({ usuario: yo, superadmin, orgs: superadmin ? [...orgs.values()].map((o) => ({ id: o.id, nombre: o.nombre, rol: 'owner', apps: [], negocios: [] })) : [], acceso: accesos.get(uid) ?? null });
@@ -117,7 +128,31 @@ export function apiFalsa() {
     if (p === '/admin/importar' && metodo === 'GET') return { estado: 200, html: '<!doctype html><title>Importar · Taller 101</title><p>La página del importador, tal como vive en la API (#0080C1).</p>', cabeceras: {} };
     if (!superadmin) return err('sin_permiso', 403);
 
-    if (p === '/admin/orgs' && metodo === 'GET') return ok({ total: orgs.size, filas: [...orgs.values()] });
+    if (p === '/admin/orgs' && metodo === 'GET') return ok({ total: orgs.size, filas: [...orgs.values()].map(conConteos) });
+    if (p === '/admin/bitacora' && metodo === 'GET') return ok({ total: bitacora.length, filas: bitacora.slice(0, 200) });
+    if (p === '/admin/superadmins' && metodo === 'GET') {
+      const filas = [...supers].map((id) => ({ usuario_id: id, correo: usuarios.get(id).correo, nombre: usuarios.get(id).nombre }));
+      return ok({ total: filas.length, filas });
+    }
+    if (p === '/admin/superadmins' && metodo === 'POST') {
+      const correo = String(cuerpo.correo || '').trim().toLowerCase();
+      if (!correo.includes('@')) return err('datos_invalidos', 400, { falta: 'correo' });
+      let u = porCorreo(correo);
+      if (!u) { u = { id: `u-${++n}`, correo, nombre: cuerpo.nombre ?? null, creado_at: new Date().toISOString() }; usuarios.set(u.id, u); }
+      const ya = supers.has(u.id);
+      supers.add(u.id);
+      if (!ya) apunta(yo.correo, null, 'superadmin', null, correo);
+      return ok({ usuario_id: u.id, correo, nombre: u.nombre, ya_lo_era: ya }, ya ? 200 : 201);
+    }
+    m = p.match(/^\/admin\/superadmins\/([^/]+)$/);
+    if (m && metodo === 'DELETE') {
+      if (m[1] === uid) return err('datos_invalidos', 409, { motivo: 'a_ti_mismo' });
+      if (!supers.has(m[1])) return err('no_encontrado', 404);
+      if (supers.size <= 1) return err('ultimo_superadmin', 409);
+      supers.delete(m[1]);
+      apunta(yo.correo, null, 'superadmin', usuarios.get(m[1]).correo, null);
+      return ok({ quitado: true });
+    }
     if (p === '/admin/orgs' && metodo === 'POST') {
       const id = String(cuerpo.id || '').trim().toLowerCase();
       if (!/^[a-z0-9-]{2,40}$/.test(id)) return err('datos_invalidos', 400, { id: 'slug de a-z, 0-9 y guiones' });
@@ -125,17 +160,36 @@ export function apiFalsa() {
       if (orgs.has(id)) return err('datos_invalidos', 409, { id: 'ya existe' });
       const o = { id, nombre: cuerpo.nombre, plan: cuerpo.plan || '', apps: { dash: false, quell: false, peek: false, cotizador: false, roster: false, nest: false, ...(cuerpo.apps || {}) }, moneda: cuerpo.moneda || 'MXN', activa: true, creado_at: new Date().toISOString() };
       orgs.set(id, o); miembros.set(id, []);
+      apunta(yo.correo, id, 'creada', null, `${o.nombre} · ${Object.entries(o.apps).filter(([, v]) => v).map(([k]) => k).join(', ')}`);
       return ok({ org: o, org_db_version: 3 }, 201);
     }
     m = p.match(/^\/admin\/orgs\/([^/]+)$/);
+    if (m && metodo === 'GET') {
+      const o = orgs.get(m[1]);
+      if (!o) return err('org_desconocida', 404);
+      return ok(conConteos(o));
+    }
     if (m && metodo === 'PATCH') {
       const o = orgs.get(m[1]);
       if (!o) return err('org_desconocida', 404);
+      const antes = JSON.parse(JSON.stringify(o));
       if (cuerpo.nombre !== undefined) o.nombre = cuerpo.nombre;
       if (cuerpo.plan !== undefined) o.plan = cuerpo.plan;
       if (cuerpo.apps !== undefined) o.apps = cuerpo.apps;
       if (cuerpo.activa !== undefined) o.activa = !!cuerpo.activa;
-      return ok({ ...o });
+      if (antes.nombre !== o.nombre) apunta(yo.correo, o.id, 'nombre', antes.nombre, o.nombre);
+      if (antes.plan !== o.plan) apunta(yo.correo, o.id, 'plan', antes.plan, o.plan);
+      if (antes.activa !== o.activa) apunta(yo.correo, o.id, 'activa', String(antes.activa), String(o.activa));
+      for (const k of new Set([...Object.keys(antes.apps), ...Object.keys(o.apps)])) {
+        if ((antes.apps[k] === true) !== (o.apps[k] === true)) apunta(yo.correo, o.id, `apps.${k}`, String(antes.apps[k] === true), String(o.apps[k] === true));
+      }
+      return ok(conConteos(o));
+    }
+    m = p.match(/^\/admin\/orgs\/([^/]+)\/bitacora$/);
+    if (m && metodo === 'GET') {
+      if (!orgs.has(m[1])) return err('org_desconocida', 404);
+      const filas = bitacora.filter((b) => b.org_id === m[1]).slice(0, 200);
+      return ok({ total: filas.length, filas });
     }
     if (m && metodo === 'DELETE') {
       if (!orgs.has(m[1])) return err('org_desconocida', 404);
@@ -157,12 +211,15 @@ export function apiFalsa() {
       if (!u) { u = { id: `u-${++n}`, correo, nombre: cuerpo.nombre ?? null, creado_at: new Date().toISOString() }; usuarios.set(u.id, u); }
       const lista = miembros.get(m[1]);
       const ya = lista.find((x) => x.usuario_id === u.id);
+      apunta(yo.correo, m[1], 'miembro', ya ? `${correo} (${ya.rol})` : null, `${correo} (${cuerpo.rol})`);
       if (ya) ya.rol = cuerpo.rol; else lista.push({ org_id: m[1], usuario_id: u.id, rol: cuerpo.rol, apps: cuerpo.apps || [], negocios: cuerpo.negocios || [] });
       return ok({ usuario_id: u.id, correo, rol: cuerpo.rol }, 201);
     }
     m = p.match(/^\/admin\/orgs\/([^/]+)\/miembros\/([^/]+)$/);
     if (m && metodo === 'DELETE') {
       const lista = miembros.get(m[1]) || [];
+      const previo = lista.find((x) => x.usuario_id === m[2]);
+      if (previo) apunta(yo.correo, m[1], 'miembro', `${usuarios.get(m[2]).correo} (${previo.rol})`, null);
       miembros.set(m[1], lista.filter((x) => x.usuario_id !== m[2]));
       return ok({ quitado: true });
     }

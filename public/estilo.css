@@ -151,3 +151,10 @@ input[type="checkbox"]{width:18px;height:18px;padding:0;margin:0;accent-color:va
   .wrap{padding:18px 14px 50px}
   .cab h1{font-size:21px}
 }
+
+/* 0.2.0: conteos y bitácora */
+th.r,td.r{text-align:right}
+td.fecha{white-space:nowrap;font-size:13px;color:var(--tinta-2)}
+td .quien{font-size:12.5px;color:var(--tinta-3)}
+.antes{color:var(--tinta-3);text-decoration:line-through}
+.despues{font-weight:600}
