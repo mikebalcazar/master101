@@ -36,6 +36,8 @@ const ERRORES = {
   datos_invalidos: 'Revisa lo que escribiste.',
   correo_no_configurado: 'El envío de códigos no está disponible ahora. Intenta más tarde.',
   sin_respuesta: 'La API no contestó. Vuelve a intentar.',
+  ultimo_superadmin: 'Es el último superadmin: no se puede quitar. Agrega a otro primero.',
+  no_encontrado: 'Eso ya no existe.',
 };
 
 class ErrorApi extends Error {
@@ -58,6 +60,34 @@ async function pedir(ruta, opciones = {}) {
   return cuerpo.data;
 }
 
+/** Fecha y hora cortas, en la del centro de México. */
+function cuando(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const z = { timeZone: 'America/Mexico_City' };
+  return d.toLocaleDateString('es-MX', { ...z, day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('es-MX', { ...z, hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/** Cómo se lee un renglón de la bitácora del panel. */
+const CAMPOS = { creada: 'Se creó la empresa', nombre: 'Nombre', plan: 'Plan', moneda: 'Moneda', activa: 'Activa', miembro: 'Gente', superadmin: 'Superadmin' };
+function campoLegible(campo) {
+  if (campo.startsWith('apps.')) { const k = campo.slice(5); const app = APPS.find(([a]) => a === k); return `App ${app ? app[1] : k}`; }
+  return CAMPOS[campo] || campo;
+}
+const valorLegible = (v) => (v === null || v === undefined || v === '' ? '—' : v === 'true' ? 'prendida' : v === 'false' ? 'apagada' : v);
+
+function filasBitacora(filas, conQue) {
+  if (!filas.length) return `<tr><td colspan="${conQue ? 5 : 4}" class="nota">Sin cambios apuntados todavía.</td></tr>`;
+  return filas.map((f) => `<tr>
+    <td class="fecha">${esc(cuando(f.cuando))}</td>
+    <td class="mono">${esc(f.quien)}</td>
+    ${conQue ? `<td>${esc(campoLegible(f.campo))}</td>` : ''}
+    <td class="antes">${esc(valorLegible(f.antes))}</td>
+    <td class="despues">${esc(valorLegible(f.despues))}</td>
+  </tr>`).join('');
+}
+
 /* ─────────────── estado ─────────────── */
 
 let YO = null;          // lo que dijo /yo
@@ -66,7 +96,7 @@ let ORG = null;         // la empresa abierta en «gente»
 let correo = '';
 let modo = 'codigo';    // 'codigo' | 'pin'
 
-const VISTAS = ['v-correo', 'v-clave', 'v-nomanda', 'v-cargando', 'v-empresas', 'v-alta', 'v-gente'];
+const VISTAS = ['v-correo', 'v-clave', 'v-nomanda', 'v-cargando', 'v-empresas', 'v-alta', 'v-gente', 'v-super'];
 function mostrar(cual) {
   for (const v of VISTAS) $(v).hidden = v !== cual;
   for (const b of document.querySelectorAll('#menu [data-ir]')) b.classList.toggle('activo', `v-${b.dataset.ir}` === cual);
@@ -209,7 +239,7 @@ async function cargarEmpresas() {
 async function irAEmpresas() {
   aviso('e-aviso', '');
   mostrar('v-empresas');
-  $('e-filas').innerHTML = '<tr><td colspan="10" class="nota">Cargando…</td></tr>';
+  $('e-filas').innerHTML = '<tr><td colspan="12" class="nota">Cargando…</td></tr>';
   try {
     await cargarEmpresas();
     pintarEmpresas();
@@ -223,7 +253,7 @@ function pintarEmpresas() {
   const activas = EMPRESAS.filter((o) => o.activa).length;
   $('e-sub').textContent = `${EMPRESAS.length} empresa${EMPRESAS.length === 1 ? '' : 's'} · ${activas} activa${activas === 1 ? '' : 's'}`;
   if (!EMPRESAS.length) {
-    $('e-filas').innerHTML = '<tr><td colspan="10" class="nota">Todavía no hay ninguna empresa. Da de alta la primera.</td></tr>';
+    $('e-filas').innerHTML = '<tr><td colspan="12" class="nota">Todavía no hay ninguna empresa. Da de alta la primera.</td></tr>';
     return;
   }
   $('e-filas').innerHTML = EMPRESAS.map((o) => `
@@ -231,6 +261,8 @@ function pintarEmpresas() {
       <td><div class="n">${esc(o.nombre)}</div><div class="m mono">${esc(o.id)} · ${esc(o.moneda || 'MXN')}</div></td>
       <td>${o.plan ? esc(o.plan) : '<span class="nota">—</span>'}</td>
       ${APPS.map(([k, nombre]) => `<td class="app"><label class="sw" title="${esc(nombre)} · ${esc(o.nombre)}"><input type="checkbox" data-app="${k}" data-org="${esc(o.id)}"${o.apps?.[k] ? ' checked' : ''}${o.activa ? '' : ' disabled'}><i></i></label></td>`).join('')}
+      <td class="r num" data-personas="${esc(o.id)}">${esc(o.personas ?? '—')}</td>
+      <td class="fecha" data-entrada="${esc(o.id)}">${o.ultima_entrada ? esc(cuando(o.ultima_entrada)) : '<span class="nota">nadie aún</span>'}</td>
       <td>${o.activa ? '<span class="chip ok">activa</span>' : '<span class="chip mal">suspendida</span>'}</td>
       <td><div class="acciones">
         <button class="btn suave chico" data-gente="${esc(o.id)}">Gente</button>
@@ -285,7 +317,7 @@ async function suspender(id, boton) {
 $('e-refrescar').onclick = irAEmpresas;
 $('e-nueva').onclick = () => irAAlta();
 for (const b of document.querySelectorAll('#menu [data-ir]')) {
-  b.onclick = () => (b.dataset.ir === 'alta' ? irAAlta() : irAEmpresas());
+  b.onclick = () => (b.dataset.ir === 'alta' ? irAAlta() : b.dataset.ir === 'super' ? irASuper() : irAEmpresas());
 }
 
 /* ─────────────── alta de empresa ─────────────── */
@@ -369,10 +401,20 @@ async function irAGente(id) {
   $('g-nombre').textContent = ORG.nombre;
   $('g-sub').textContent = 'Cargando…';
   $('g-filas').innerHTML = '';
+  $('g-bitacora').innerHTML = '';
   $('f-gente').reset();
   $('err-gente').textContent = '';
   mostrar('v-gente');
-  await cargarGente();
+  await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id)]);
+}
+
+async function cargarBitacoraDe(id) {
+  try {
+    const d = await pedir(`/admin/orgs/${encodeURIComponent(id)}/bitacora`);
+    $('g-bitacora').innerHTML = filasBitacora(d.filas ?? [], true);
+  } catch (e) {
+    $('g-bitacora').innerHTML = `<tr><td colspan="5" class="nota">${esc(e.message)}</td></tr>`;
+  }
 }
 
 async function cargarGente() {
@@ -406,7 +448,7 @@ $('f-gente').onsubmit = async (ev) => {
     await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros`, { method: 'POST', body: { correo: c, nombre: $('p-nombre').value.trim() || undefined, rol: $('p-rol').value } });
     $('f-gente').reset();
     aviso('g-aviso', `${c} ya tiene acceso a ${ORG.nombre}.`, 'bien');
-    await cargarGente();
+    await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id), cargarEmpresas().catch(() => {})]);
   } catch (e) {
     $('err-gente').textContent = e.message;
   } finally { b.disabled = false; b.textContent = 'Agregar'; }
@@ -415,9 +457,12 @@ $('f-gente').onsubmit = async (ev) => {
 /* Quitar a alguien pide escribir su correo tal cual: es la confirmación que
  * no se da por reflejo. */
 let porQuitar = null;
-function pedirConfirmacion(usuario_id, correoDe) {
-  porQuitar = { usuario_id, correo: correoDe };
-  $('q-empresa').textContent = ORG.nombre;
+function pedirConfirmacion(usuario_id, correoDe, que = 'miembro') {
+  porQuitar = { usuario_id, correo: correoDe, que };
+  $('q-titulo').textContent = que === 'super' ? 'Quitar a este superadmin' : 'Quitar a esta persona';
+  $('q-texto').innerHTML = que === 'super'
+    ? 'Deja de mandar en este panel. Su usuario y sus accesos a empresas no se tocan. Para confirmar, escribe su correo tal cual:'
+    : `Deja de entrar a <b>${esc(ORG?.nombre ?? '')}</b>. Sus datos no se tocan. Para confirmar, escribe su correo tal cual:`;
   $('q-correo').textContent = correoDe;
   $('q-escrito').value = '';
   $('q-quitar').disabled = true;
@@ -429,16 +474,77 @@ $('q-cancelar').onclick = () => { $('velo').hidden = true; porQuitar = null; };
 $('q-quitar').onclick = async () => {
   if (!porQuitar) return;
   const b = $('q-quitar'); b.disabled = true; b.textContent = 'Quitando…';
+  const esSuper = porQuitar.que === 'super';
+  const cajaAviso = esSuper ? 's-aviso' : 'g-aviso';
   try {
-    await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros/${encodeURIComponent(porQuitar.usuario_id)}`, { method: 'DELETE' });
-    $('velo').hidden = true;
-    aviso('g-aviso', `${porQuitar.correo} ya no entra a ${ORG.nombre}.`, 'bien');
-    porQuitar = null;
-    await cargarGente();
+    if (esSuper) {
+      await pedir(`/admin/superadmins/${encodeURIComponent(porQuitar.usuario_id)}`, { method: 'DELETE' });
+      $('velo').hidden = true;
+      aviso(cajaAviso, `${porQuitar.correo} ya no es superadmin.`, 'bien');
+      porQuitar = null;
+      await cargarSuper();
+    } else {
+      await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros/${encodeURIComponent(porQuitar.usuario_id)}`, { method: 'DELETE' });
+      $('velo').hidden = true;
+      aviso(cajaAviso, `${porQuitar.correo} ya no entra a ${ORG.nombre}.`, 'bien');
+      porQuitar = null;
+      await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id), cargarEmpresas().catch(() => {})]);
+    }
   } catch (e) {
-    aviso('g-aviso', e.message);
+    aviso(cajaAviso, e.error === 'datos_invalidos' && e.detalle?.motivo === 'a_ti_mismo' ? 'No te puedes quitar a ti mismo.' : e.message);
     $('velo').hidden = true;
   } finally { b.textContent = 'Quitar'; }
+};
+
+/* ─────────────── superadmins ───────────────
+ * Quién manda en este panel. Los candados los pone la API (el último no se
+ * quita, nadie se quita a sí mismo); aquí sólo se enseñan sus mensajes. */
+
+async function irASuper() {
+  aviso('s-aviso', '');
+  $('s-filas').innerHTML = '<tr><td colspan="3" class="nota">Cargando…</td></tr>';
+  $('s-bitacora').innerHTML = '';
+  $('f-super').reset();
+  $('err-super').textContent = '';
+  mostrar('v-super');
+  await cargarSuper();
+}
+
+async function cargarSuper() {
+  try {
+    const [d, b] = await Promise.all([pedir('/admin/superadmins'), pedir('/admin/bitacora')]);
+    const filas = [...(d.filas ?? [])].sort((a, c) => a.correo.localeCompare(c.correo));
+    $('s-sub').textContent = `${filas.length} superadmin${filas.length === 1 ? '' : 's'}. Ven y tocan todas las empresas.`;
+    $('s-filas').innerHTML = filas.map((x) => {
+      const soyYo = x.usuario_id === YO.usuario.id;
+      return `<tr>
+        <td class="mono">${esc(x.correo)}${soyYo ? ' <span class="nota">(tú)</span>' : ''}</td>
+        <td>${x.nombre ? esc(x.nombre) : '<span class="nota">—</span>'}</td>
+        <td><div class="acciones">${soyYo || filas.length <= 1 ? '' : `<button class="btn peligro chico" data-quitar-super="${esc(x.usuario_id)}" data-correo="${esc(x.correo)}">Quitar</button>`}</div></td>
+      </tr>`;
+    }).join('');
+    for (const btn of $('s-filas').querySelectorAll('[data-quitar-super]')) btn.onclick = () => pedirConfirmacion(btn.dataset.quitarSuper, btn.dataset.correo, 'super');
+    $('s-bitacora').innerHTML = filasBitacora((b.filas ?? []).filter((f) => f.campo === 'superadmin'), false);
+  } catch (e) {
+    $('s-filas').innerHTML = '';
+    aviso('s-aviso', e.message);
+  }
+}
+
+$('f-super').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const c = $('s-correo').value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(c)) { $('err-super').textContent = 'Escribe un correo válido.'; return; }
+  const b = $('b-super'); b.disabled = true; b.textContent = 'Agregando…';
+  $('err-super').textContent = '';
+  try {
+    const r = await pedir('/admin/superadmins', { method: 'POST', body: { correo: c, nombre: $('s-nombre').value.trim() || undefined } });
+    $('f-super').reset();
+    aviso('s-aviso', r.ya_lo_era ? `${c} ya era superadmin.` : `${c} ya manda en este panel. Entra con su correo, como tú.`, 'bien');
+    await cargarSuper();
+  } catch (e) {
+    $('err-super').textContent = e.message;
+  } finally { b.disabled = false; b.textContent = 'Agregar'; }
 };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('velo').hidden) $('q-cancelar').click(); });
 

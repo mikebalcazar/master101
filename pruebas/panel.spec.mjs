@@ -183,6 +183,9 @@ async function recorrido(navegador) {
   await swPeek.click({ force: true });
   await esperaPatch;
   await pagina.waitForFunction((org) => !document.querySelector(`#e-filas input[data-app="peek"][data-org="${org}"]`)?.checked, ORG, { timeout: 10000 });
+  // 0.2.0: la tabla trae gente y última entrada por empresa (contrato 0.5.0).
+  rev((await pagina.textContent(`#e-filas [data-personas="${ORG}"]`)).trim() === '1', 'la tabla dice que la empresa nueva tiene 1 persona (su dueño)', await pagina.textContent(`#e-filas [data-personas="${ORG}"]`));
+  rev((await pagina.textContent(`#e-filas [data-entrada="${ORG}"]`)).includes('nadie'), 'y que nadie ha entrado todavía');
   const peekApagado = await json(`${API_DIRECTA}/orgs/${ORG}/peek`, { cabeceras: { Cookie: galletaSuper, 'X-App': 'peek101' } });
   rev(peekApagado.estado === 403 && peekApagado.cuerpo?.error === 'app_inactiva', 'con peek apagado, la API le contesta 403 app_inactiva a peek101', `${peekApagado.estado} ${peekApagado.cuerpo?.error ?? ''}`);
 
@@ -217,6 +220,13 @@ async function recorrido(navegador) {
   await pagina.click(`#e-filas [data-gente="${ORG}"]`);
   await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 10000 });
   await pagina.waitForFunction(() => document.querySelectorAll('#g-filas tr').length > 0, null, { timeout: 15000 });
+  // 0.2.0: la bitácora de la empresa ya trae lo que se hizo arriba, con quién.
+  await pagina.waitForFunction(() => document.querySelectorAll('#g-bitacora tr').length > 1, null, { timeout: 15000 });
+  const textoBit = await pagina.locator('#g-bitacora').innerText();
+  rev(/App peek101/.test(textoBit) && /apagada/.test(textoBit) && /prendida/.test(textoBit), 'la bitácora de la empresa enseña que peek se apagó y se prendió', textoBit.split('\n').slice(0, 3).join(' | '));
+  rev(/Activa/.test(textoBit), 'y que se suspendió y reactivó');
+  rev(textoBit.includes(SUPER), 'con el correo de quien lo hizo');
+  rev(/Se creó la empresa/.test(textoBit), 'y la creación');
   rev((await pagina.locator('#g-filas [data-quitar]').count()) === 1, 'la gente de la empresa trae al dueño');
   await pagina.fill('#p-correo', `oficina-${ORG}@ejemplo.mx`);
   await pagina.selectOption('#p-rol', 'staff');
@@ -239,6 +249,44 @@ async function recorrido(navegador) {
   await pagina.waitForFunction(() => document.querySelectorAll('#g-filas [data-quitar]').length === 1, null, { timeout: 15000 });
   const conUno = (await json(`${BASE}/s101/admin/orgs/${ORG}/miembros`, { cabeceras: { Cookie: galletaSuper } })).cuerpo?.data?.filas ?? [];
   rev(conUno.length === 1, 'quitada de la pantalla y de la API', `${conUno.length} persona(s)`);
+
+  // Y quitar a la de oficina también quedó apuntado.
+  await pagina.waitForFunction((c) => document.querySelector('#g-bitacora')?.innerText.includes(c), `oficina-${ORG}@ejemplo.mx (staff)`, { timeout: 15000 });
+  rev(true, 'agregar y quitar gente queda en la bitácora de la empresa');
+
+  // ── superadmins (0.2.0) ──
+  await pagina.click('#menu [data-ir="super"]');
+  await pagina.waitForSelector('#v-super:not([hidden])', { timeout: 10000 });
+  await pagina.waitForFunction(() => document.querySelectorAll('#s-filas tr').length > 0, null, { timeout: 15000 });
+  const supersAntes = await pagina.locator('#s-filas tr').count();
+  rev((await pagina.locator('#s-filas').innerText()).includes(SUPER), 'la lista de superadmins trae al que entró', `${supersAntes} superadmin(s)`);
+  rev((await pagina.locator(`#s-filas [data-quitar-super]`).count()) < supersAntes, 'uno mismo no tiene botón de quitar');
+  const nuevoSuper = `super-${ORG}@ejemplo.mx`;
+  await pagina.fill('#s-correo', nuevoSuper);
+  await pagina.fill('#s-nombre', 'Súper de prueba');
+  await pagina.click('#b-super');
+  await pagina.waitForFunction((n) => document.querySelectorAll('#s-filas tr').length === n + 1, supersAntes, { timeout: 15000 });
+  rev(true, 'se agrega un superadmin por correo y aparece en la lista');
+  const listaSuper = (await json(`${BASE}/s101/admin/superadmins`, { cabeceras: { Cookie: galletaSuper } })).cuerpo?.data?.filas ?? [];
+  const agregado = listaSuper.find((x) => x.correo === nuevoSuper);
+  rev(!!agregado, 'y la API lo tiene como superadmin');
+  const miUid = (await json(`${BASE}/s101/yo`, { cabeceras: { Cookie: galletaSuper } })).cuerpo?.data?.usuario?.id;
+  const aMiMismo = await json(`${BASE}/s101/admin/superadmins/${miUid}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } });
+  rev(aMiMismo.estado === 409 && aMiMismo.cuerpo?.detalle?.motivo === 'a_ti_mismo', 'quitarse a sí mismo por la API da 409 a_ti_mismo', `${aMiMismo.estado} ${aMiMismo.cuerpo?.error ?? ''}`);
+  await sinScroll(pagina, 'superadmins');
+  await pagina.click(`#s-filas [data-quitar-super="${agregado?.usuario_id}"]`);
+  await pagina.waitForSelector('#velo:not([hidden])', { timeout: 5000 });
+  rev((await pagina.textContent('#q-titulo')).includes('superadmin'), 'quitar un superadmin pide escribir su correo');
+  await pagina.fill('#q-escrito', nuevoSuper);
+  await pagina.click('#q-quitar');
+  await pagina.waitForFunction((n) => document.querySelectorAll('#s-filas tr').length === n, supersAntes, { timeout: 15000 });
+  rev(true, 'quitado: la lista vuelve a como estaba');
+  const textoSuperBit = await pagina.locator('#s-bitacora').innerText();
+  rev(textoSuperBit.includes(nuevoSuper), 'el alta y la baja del superadmin quedaron en su bitácora');
+  const yaNo = (await json(`${BASE}/s101/admin/superadmins`, { cabeceras: { Cookie: galletaSuper } })).cuerpo?.data?.filas ?? [];
+  rev(!yaNo.some((x) => x.correo === nuevoSuper), 'y la API ya no lo tiene');
+  await pagina.click('#menu [data-ir="empresas"]');
+  await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 10000 });
 
   // Importar es un enlace a la página que ya existe en la API.
   rev((await pagina.getAttribute('#liga-importar', 'href')) === '/s101/admin/importar', 'importar es un enlace a la página de la API, no una copia');
@@ -280,6 +328,7 @@ async function escritorio(navegador) {
   await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 20000 });
   await pagina.waitForSelector(`#e-filas tr[data-org="${ORG}"]`, { timeout: 15000 });
   rev((await pagina.locator('#e-tabla thead th.app').count()) === 6, 'seis columnas de apps');
+  rev((await pagina.locator('#e-tabla thead th').count()) === 12, 'doce columnas: empresa, plan, seis apps, gente, última entrada, estado y acciones');
   rev((await pagina.locator(`#e-filas tr[data-org="${ORG}"] input[data-app]`).count()) === 6, 'seis interruptores por empresa');
   await sinScroll(pagina, 'la tabla en escritorio');
   rev(errores.length === 0, 'cero errores de JavaScript', errores.slice(0, 2).join(' | '));

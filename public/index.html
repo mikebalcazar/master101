@@ -18,6 +18,7 @@
   <nav class="menu" id="menu" hidden>
     <button data-ir="empresas" class="activo">Empresas</button>
     <button data-ir="alta">Alta de empresa</button>
+    <button data-ir="super">Superadmins</button>
     <a href="/s101/admin/importar" id="liga-importar">Importar</a>
   </nav>
   <div class="quien" id="quien" hidden><span id="quien-n"></span><button id="salir">Salir</button></div>
@@ -73,11 +74,11 @@
     <thead><tr>
       <th>Empresa</th><th>Plan</th>
       <th class="app">dash</th><th class="app">quell</th><th class="app">peek</th><th class="app">cotizador</th><th class="app">roster</th><th class="app">nest</th>
-      <th>Estado</th><th></th>
+      <th class="r">Gente</th><th>Última entrada</th><th>Estado</th><th></th>
     </tr></thead>
     <tbody id="e-filas"></tbody>
   </table></div>
-  <p class="nota">Cada interruptor prende o apaga esa app para esa empresa en cuanto lo tocas; la tabla se repinta con lo que la API contesta. Una empresa suspendida recibe «pausada» en todas sus apps.</p>
+  <p class="nota">Cada interruptor prende o apaga esa app para esa empresa en cuanto lo tocas; la tabla se repinta con lo que la API contesta. Una empresa suspendida recibe «pausada» en todas sus apps. «Gente» cuenta socios y oficina; «Última entrada» es la sesión más reciente de cualquiera de ellos.</p>
 </main>
 
 <!-- ALTA DE EMPRESA -->
@@ -132,13 +133,44 @@
     <div class="err" id="err-gente"></div>
     <div class="acciones"><button class="btn" type="submit" id="b-gente">Agregar</button></div>
   </form>
+  <h2 class="h2">Cambios en esta empresa</h2>
+  <p class="nota">Quién prendió o apagó qué, quién la suspendió, quién agregó o quitó gente. Lo apunta la API sola; nadie lo escribe a mano.</p>
+  <div class="tabla"><table>
+    <thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Antes</th><th>Después</th></tr></thead>
+    <tbody id="g-bitacora"></tbody>
+  </table></div>
+</main>
+
+<!-- SUPERADMINS -->
+<main class="wrap" id="v-super" hidden>
+  <div class="cab"><div><p class="eyebrow">Suite 101</p><h1>Superadmins</h1><div class="sub" id="s-sub">Quién manda en este panel. Ven y tocan todas las empresas.</div></div></div>
+  <div class="aviso" id="s-aviso" hidden></div>
+  <div class="tabla"><table>
+    <thead><tr><th>Correo</th><th>Nombre</th><th></th></tr></thead>
+    <tbody id="s-filas"></tbody>
+  </table></div>
+  <p class="nota">El último superadmin no se puede quitar, y nadie se quita a sí mismo.</p>
+  <h2 class="h2">Agregar un superadmin</h2>
+  <form class="forma" id="f-super" novalidate>
+    <div class="dos">
+      <label for="s-correo">Correo<input id="s-correo" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false" required></label>
+      <label for="s-nombre">Nombre <span class="opc">(opcional)</span><input id="s-nombre" autocomplete="off"></label>
+    </div>
+    <div class="err" id="err-super"></div>
+    <div class="acciones"><button class="btn" type="submit" id="b-super">Agregar</button></div>
+  </form>
+  <h2 class="h2">Cambios de superadmins</h2>
+  <div class="tabla"><table>
+    <thead><tr><th>Cuándo</th><th>Quién</th><th>Antes</th><th>Después</th></tr></thead>
+    <tbody id="s-bitacora"></tbody>
+  </table></div>
 </main>
 
 <!-- CONFIRMAR QUITAR A ALGUIEN -->
 <div class="velo" id="velo" hidden>
   <div class="dialogo" role="dialog" aria-modal="true" aria-labelledby="q-titulo">
     <h2 id="q-titulo">Quitar a esta persona</h2>
-    <p>Deja de entrar a <b id="q-empresa"></b>. Sus datos no se tocan. Para confirmar, escribe su correo tal cual:</p>
+    <p id="q-texto">Deja de entrar a <b id="q-empresa"></b>. Sus datos no se tocan. Para confirmar, escribe su correo tal cual:</p>
     <p class="mono" id="q-correo"></p>
     <input id="q-escrito" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="escribe el correo">
     <div class="acciones"><button class="btn suave" type="button" id="q-cancelar">Cancelar</button><button class="btn peligro" type="button" id="q-quitar" disabled>Quitar</button></div>
