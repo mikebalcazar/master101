@@ -219,7 +219,7 @@ async function recorrido(navegador) {
   // ── gente ──
   await pagina.click(`#e-filas [data-gente="${ORG}"]`);
   await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 10000 });
-  await pagina.waitForFunction(() => document.querySelectorAll('#g-filas tr').length > 0, null, { timeout: 15000 });
+  await pagina.waitForSelector('#g-filas td.mono', { timeout: 15000 });
   // 0.2.0: la bitácora de la empresa ya trae lo que se hizo arriba, con quién.
   await pagina.waitForFunction(() => document.querySelectorAll('#g-bitacora tr').length > 1, null, { timeout: 15000 });
   const textoBit = await pagina.locator('#g-bitacora').innerText();
@@ -257,7 +257,9 @@ async function recorrido(navegador) {
   // ── superadmins (0.2.0) ──
   await pagina.click('#menu [data-ir="super"]');
   await pagina.waitForSelector('#v-super:not([hidden])', { timeout: 10000 });
-  await pagina.waitForFunction(() => document.querySelectorAll('#s-filas tr').length > 0, null, { timeout: 15000 });
+  // Se espera a una fila DE VERDAD (con correo), no al renglón de «Cargando…»:
+  // contra staging la primera corrida leyó ese renglón y falló por eso.
+  await pagina.waitForSelector('#s-filas td.mono', { timeout: 15000 });
   const supersAntes = await pagina.locator('#s-filas tr').count();
   rev((await pagina.locator('#s-filas').innerText()).includes(SUPER), 'la lista de superadmins trae al que entró', `${supersAntes} superadmin(s)`);
   rev((await pagina.locator(`#s-filas [data-quitar-super]`).count()) < supersAntes, 'uno mismo no tiene botón de quitar');
