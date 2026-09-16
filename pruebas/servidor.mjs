@@ -55,6 +55,7 @@ export function apiFalsa() {
   const accesos = new Map([['u-cliente', { org_id: 'demo', tipo: 'cliente', ref_id: 'c1' }]]);
   const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', roster101: 'roster', nest101: 'nest' };
   const supers = new Set(['u-duena']);
+  const boletos = new Map();   // boleto de Google → cookie de sesión, un solo uso
   const bitacora = [];   // contrato 0.5.0: la escribe la API sola
   let nb = 0;
   const apunta = (quien, org_id, campo, antes, despues) => bitacora.unshift({ id: ++nb, cuando: new Date().toISOString(), quien, org_id, campo, antes: antes ?? null, despues: despues ?? null });
@@ -100,6 +101,31 @@ export function apiFalsa() {
       const c = `ses-${++n}-${Math.random().toString(36).slice(2)}`;
       sesiones.set(c, u.id);
       entradas.set(u.id, new Date().toISOString());
+      return ok({ usuario: u, vive_segundos: 3600 }, 200, { 'Set-Cookie': `s101=${c}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=3600` });
+    }
+    // Google de mentiras: la API de verdad manda a accounts.google.com y
+    // Google devuelve a la API, que abre la sesión y regresa a la app con un
+    // boleto de un solo uso. Aquí se salta Google: entra la dueña y se
+    // regresa a `volver_a` con el boleto, que es lo que la app tiene que
+    // saber canjear. Con GOOGLE_FALSO=apagado se imita la API sin llaves.
+    if (p === '/auth/google' && metodo === 'GET') {
+      const volver_a = url.searchParams.get('volver_a') || '/';
+      if (process.env.GOOGLE_FALSO === 'apagado') return err('google_no_configurado', 501);
+      const u = porCorreo(SUPER);
+      const c = `ses-${++n}-${Math.random().toString(36).slice(2)}`;
+      sesiones.set(c, u.id);
+      entradas.set(u.id, new Date().toISOString());
+      const boleto = `boleto-${Math.random().toString(36).slice(2)}`;
+      boletos.set(boleto, c);
+      const destino = new URL(volver_a, 'http://127.0.0.1');
+      destino.searchParams.set('entrada', boleto);
+      return { estado: 302, cuerpo: { ok: true, data: { a: destino.toString() } }, cabeceras: { Location: destino.toString() } };
+    }
+    if (p === '/auth/canje' && metodo === 'POST') {
+      const c = boletos.get(String(cuerpo.entrada || ''));
+      if (!c) return err('entrada_invalida', 401);
+      boletos.delete(String(cuerpo.entrada));
+      const u = usuarios.get(sesiones.get(c));
       return ok({ usuario: u, vive_segundos: 3600 }, 200, { 'Set-Cookie': `s101=${c}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=3600` });
     }
     if (p === '/auth/salir' && metodo === 'POST') { if (galleta) sesiones.delete(galleta); return ok({ cerrada: true }, 200, { 'Set-Cookie': 's101=; Path=/; Max-Age=0' }); }

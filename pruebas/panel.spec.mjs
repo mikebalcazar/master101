@@ -337,6 +337,49 @@ async function escritorio(navegador) {
   await ctx.close();
 }
 
+/* ─────────────── entrar con Google ───────────────
+ * Contra el banco falso se recorre el camino entero: el botón, la API «manda
+ * a Google» y regresa con `?entrada=`, la app canjea el boleto y queda
+ * dentro. Contra staging no se puede pasar por Google de verdad: se
+ * intercepta /s101/auth/google con el 501 de «no configurado» y se mide que
+ * la pantalla lo diga con palabras, y que un boleto inventado no entre. */
+
+async function google(navegador) {
+  console.log(`\n== entrar con Google (390 × 844) ==`);
+  const { ctx, pagina, errores } = await contexto(navegador, 390, 844);
+  const contraStaging = Boolean(process.env.BASE);
+  if (contraStaging) {
+    await pagina.route('**/s101/auth/google**', (r) => r.fulfill({ status: 501, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'google_no_configurado' }) }));
+  }
+  await pagina.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await pagina.waitForSelector('#v-correo:not([hidden])', { timeout: 15000 });
+  rev(await pagina.isVisible('#b-google'), 'el botón «Entrar con Google» está en la pantalla del correo');
+  rev(/Entrar con Google/.test(await pagina.locator('#b-google').innerText()), 'y dice «Entrar con Google»');
+  await pagina.click('#b-google');
+  if (contraStaging) {
+    await pagina.waitForFunction(() => document.getElementById('err-correo').textContent.trim() !== '', null, { timeout: 10000 });
+    const aviso = (await pagina.locator('#err-correo').innerText()).trim();
+    rev(/todavía no está prendido/.test(aviso), 'sin llaves de Google la pantalla lo dice con palabras', aviso);
+    rev(!/501|google_no_configurado/.test(aviso), 'y sin códigos de programador');
+    rev(await pagina.isVisible('#v-correo'), 'y se queda en la pantalla del correo');
+  } else {
+    await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 20000 });
+    rev(true, 'Google (de mentiras) regresó con el boleto, se canjeó y la dueña quedó dentro');
+    rev(!new URL(pagina.url()).searchParams.has('entrada'), 'el boleto se quitó de la barra de direcciones');
+    const quien = (await pagina.locator('#quien-n').innerText()).trim();
+    rev(quien.includes(SUPER), 'y la sesión es la de la dueña', quien);
+  }
+  // Un boleto inventado no entra, y se dice.
+  await pagina.goto(`${BASE}/?entrada=boleto-inventado`, { waitUntil: 'domcontentloaded' });
+  await pagina.waitForSelector('#v-correo:not([hidden])', { timeout: 15000 });
+  const malo = (await pagina.locator('#err-correo').innerText()).trim();
+  rev(/ya no sirve/.test(malo), 'un boleto inventado no entra y se dice con palabras', malo);
+  rev(!new URL(pagina.url()).searchParams.has('entrada'), 'y también se quita de la barra');
+  await sinScroll(pagina, 'la pantalla del correo con el botón de Google');
+  rev(errores.length === 0, 'cero errores de JavaScript', errores.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
 /* ─────────────── ─────────────── */
 
 const navegador = await chromium.launch(EJECUTABLE ? { executablePath: EJECUTABLE } : {});
@@ -344,6 +387,7 @@ try {
   await recorrido(navegador);
   await escritorio(navegador);
   await control(navegador);
+  await google(navegador);
 } catch (e) {
   fallas++;
   console.log(`  FALLA la prueba tronó: ${e?.stack || e}`);
