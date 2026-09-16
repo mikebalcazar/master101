@@ -26,6 +26,10 @@
 import { chromium } from 'playwright';
 
 const BASE = (process.env.BASE || 'http://127.0.0.1:8791').replace(/\/$/, '');
+/* La contraseña que esta prueba le pone a la cuenta de staging si todavía no
+ * tiene. Lleva el número de la corrida para que dos corridas a la vez no se
+ * peleen. Nunca se usa contra producción: este archivo corre contra staging. */
+const CLAVE = `panel-${process.env.GITHUB_RUN_ID || Date.now()}-alud`;
 // La API «directa», para pegarle con otra X-App que no sea master101: en el
 // banco falso es una puerta del mismo servidor; contra staging, la API misma.
 const API_DIRECTA = (process.env.API_ORIGEN || `${BASE}/api-directa`).replace(/\/$/, '');
@@ -94,11 +98,21 @@ if (yo.cuerpo?.data?.superadmin !== true) {
 async function entrarEnPantalla(pagina, correo) {
   await pagina.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await pagina.waitForSelector('#v-correo:not([hidden])', { timeout: 15000 });
+  /* DESDE EL 16-SEP-2026 la pantalla entra con Google o con contraseña, y el
+   * código quedó como recuperación. Esta prueba entra por ahí —«Olvidé mi
+   * contraseña»— porque es lo único que puede hacer sola: no sabe la contraseña
+   * de nadie, y el código sí lo puede leer de la respuesta en staging.
+   *
+   * El código se lee de la respuesta que pidió LA PROPIA INTERFAZ, no de una
+   * petición aparte: pedir otro invalidaría éste. */
   await pagina.fill('#correo', correo);
+  await pagina.click('#b-correo');
+  await pagina.waitForSelector('#v-clave:not([hidden])', { timeout: 15000 });
+
   let codigo = null;
   for (let i = 0; i < 4 && !codigo; i++) {
     const espera = pagina.waitForResponse((r) => r.url().endsWith('/s101/auth/codigo'), { timeout: 20000 });
-    await pagina.click('#b-correo');
+    await pagina.click('#olvide');
     const cuerpo = await (await espera).json().catch(() => null);
     codigo = cuerpo?.data?.codigo_prueba ?? null;
     if (!codigo) {
@@ -108,9 +122,22 @@ async function entrarEnPantalla(pagina, correo) {
     }
   }
   if (!codigo) throw new Error('la interfaz no consiguió un código de prueba');
-  await pagina.waitForSelector('#v-clave:not([hidden])', { timeout: 15000 });
-  await pagina.fill('#clave', codigo);
-  await pagina.click('#b-clave');
+  await pagina.waitForSelector('#v-codigo:not([hidden])', { timeout: 15000 });
+  await pagina.fill('#codigo', codigo);
+  await pagina.click('#b-codigo');
+
+  /* Y aquí caben las dos salidas, según si esa cuenta ya tenía contraseña:
+   *   sin contraseña → la pantalla la pide antes de dejar pasar
+   *   con contraseña → pasa directo
+   * Se esperan las dos en vez de suponer una. Suponer cuál es haría que la
+   * prueba fallara o no según el estado que dejó la corrida anterior, que es
+   * la clase de falla que manda a buscar donde no está. */
+  const pideClave = await pagina.waitForSelector('#v-nueva:not([hidden])', { timeout: 8000 }).then(() => true, () => false);
+  if (pideClave) {
+    await pagina.fill('#nueva', CLAVE);
+    await pagina.fill('#nueva2', CLAVE);
+    await pagina.click('#b-nueva');
+  }
 }
 
 async function contexto(navegador, ancho, alto) {

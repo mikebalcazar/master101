@@ -31,26 +31,64 @@
     <label for="correo">Tu correo<input type="email" id="correo" autocomplete="username" inputmode="email" enterkeyhint="next" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="tu@correo.com" required></label>
     <div class="err" id="err-correo"></div>
     <button class="btn" type="submit" id="b-correo">Continuar</button>
-    <p class="nota">Te mandamos un código de 6 dígitos. Si ya tienes PIN, también puedes entrar con él.</p>
+    <p class="nota">Con tu correo y tu contraseña.</p>
     <div class="o-bien"><span>o con tu cuenta de Google</span></div>
     <button class="btn suave" type="button" id="b-google">Entrar con Google</button>
   </form>
 </section>
 
 <!-- ENTRADA · el código o el PIN -->
+<!-- ENTRADA · la contraseña.
+     Desde el 16-sep-2026 se entra con Google o con correo y contraseña, igual
+     que en las demás apps de la suite (encargo de Mike). El código de 6
+     dígitos sigue existiendo pero cambió de papel: es cómo se recupera una
+     contraseña olvidada o se pone la primera. El PIN se fue de aquí; la API lo
+     sigue aceptando sólo por el APK de Android de quell101 ya instalado. -->
 <section class="login" id="v-clave" hidden>
   <form id="f-clave" novalidate>
-    <div><h1 id="clave-t">Tu código</h1><p id="clave-p"></p></div>
-    <label for="clave"><span id="clave-l">Código de 6 dígitos</span>
-      <input type="text" id="clave" class="pin num" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" enterkeyhint="go" required>
+    <div><h1>Tu contraseña</h1><p id="clave-p"></p></div>
+    <label for="clave">Contraseña
+      <input type="password" id="clave" name="password" autocomplete="current-password" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false" required>
     </label>
     <div class="err" id="err-clave"></div>
     <button class="btn" type="submit" id="b-clave">Entrar</button>
     <div class="opciones">
       <button type="button" class="volver" id="otro-correo">Usar otro correo</button>
-      <button type="button" class="volver" id="cambiar-modo"></button>
+      <button type="button" class="volver" id="olvide">Olvidé mi contraseña</button>
     </div>
-    <button type="button" class="volver" id="reenviar" hidden>Reenviar el código</button>
+    <p class="nota">Si es tu primera vez y todavía no tienes una, pícale ahí mismo: te mandamos un código al correo y la pones.</p>
+  </form>
+</section>
+
+<!-- RECUPERAR · el código al correo, que también sirve la primera vez -->
+<section class="login" id="v-codigo" hidden>
+  <form id="f-codigo" novalidate>
+    <div><h1>Tu código</h1><p id="codigo-p"></p></div>
+    <label for="codigo">Código de 6 dígitos
+      <input type="text" id="codigo" class="pin num" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" enterkeyhint="go" required>
+    </label>
+    <div class="err" id="err-codigo"></div>
+    <button class="btn" type="submit" id="b-codigo">Continuar</button>
+    <div class="opciones">
+      <button type="button" class="volver" id="otro-correo-2">Usar otro correo</button>
+      <button type="button" class="volver" id="reenviar">Mándame otro</button>
+    </div>
+  </form>
+</section>
+
+<!-- PONER LA CONTRASEÑA · se teclea dos veces, la segunda de memoria -->
+<section class="login" id="v-nueva" hidden>
+  <form id="f-nueva" novalidate>
+    <div><h1 id="nueva-t">Tu contraseña</h1><p id="nueva-p"></p></div>
+    <label for="nueva">Contraseña nueva
+      <input type="password" id="nueva" name="new-password" autocomplete="new-password" enterkeyhint="next" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+    </label>
+    <label for="nueva2">Otra vez
+      <input type="password" id="nueva2" name="new-password" autocomplete="new-password" enterkeyhint="go" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+    </label>
+    <div class="err" id="err-nueva"></div>
+    <button class="btn" type="submit" id="b-nueva">Guardar y entrar</button>
+    <p class="nota">Al menos diez caracteres. Que no lleve tu correo adentro ni sea de las que cualquiera prueba primero.</p>
   </form>
 </section>
 
