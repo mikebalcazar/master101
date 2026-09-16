@@ -138,7 +138,10 @@ jobs:
           {
             echo
             echo "== Lo que dice el Worker de staging (wrangler tail) =="
-            npx wrangler tail master101-staging --env staging --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
+            # Sin el nombre a mano: con --env staging wrangler ya resuelve
+            # `master101-staging`; con el nombre además pedía
+            # `master101-staging-staging` y la API contestaba error (run 02:53Z del 16-sep).
+            npx wrangler tail --env staging --format json > /tmp/tail.jsonl 2>/tmp/tail.err &
             TAIL=$!
             sleep 8
             curl -s -o /dev/null -w 'GET /  → %{http_code}\n' "$STAGING/"
