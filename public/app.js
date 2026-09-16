@@ -38,6 +38,9 @@ const ERRORES = {
   sin_respuesta: 'La API no contestó. Vuelve a intentar.',
   ultimo_superadmin: 'Es el último superadmin: no se puede quitar. Agrega a otro primero.',
   no_encontrado: 'Eso ya no existe.',
+  google_no_configurado: 'Entrar con Google todavía no está prendido. Entra con tu correo.',
+  origen_no_permitido: 'Esta dirección no está dada de alta para entrar con Google. Entra con tu correo.',
+  entrada_invalida: 'El boleto de Google ya no sirve. Vuelve a intentar.',
 };
 
 class ErrorApi extends Error {
@@ -167,6 +170,29 @@ $('f-clave').onsubmit = async (ev) => {
     $('clave').value = '';
     $('clave').focus();
   } finally { b.disabled = false; b.textContent = 'Entrar'; }
+};
+
+/* ─────────────── entrar con Google ───────────────
+ * La API manda al navegador a Google y Google devuelve a la API; ella abre la
+ * sesión y regresa aquí con `?entrada=<boleto de un solo uso>`, que el
+ * arranque canjea por la cookie en este origen (ver abajo). Antes de saltar
+ * se pregunta sin seguir el salto: si Google no está prendido en la API
+ * contesta 501 y se dice aquí, no en una pestaña con un JSON. */
+const urlGoogle = () => `${API}/auth/google?volver_a=${encodeURIComponent(location.origin + '/')}`;
+
+$('b-google').onclick = async () => {
+  const b = $('b-google'); b.disabled = true; b.textContent = 'Abriendo Google…';
+  $('err-correo').textContent = '';
+  try {
+    const r = await fetch(urlGoogle(), { redirect: 'manual', credentials: 'include' });
+    if (r.type === 'opaqueredirect' || (r.status >= 300 && r.status < 400)) { location.href = urlGoogle(); return; }
+    let cuerpo = null;
+    try { cuerpo = await r.json(); } catch { /* no vino JSON */ }
+    throw new ErrorApi(cuerpo?.error ?? 'sin_respuesta', r.status, cuerpo?.detalle);
+  } catch (e) {
+    $('err-correo').textContent = e.message;
+    b.disabled = false; b.textContent = 'Entrar con Google';
+  }
 };
 
 $('cambiar-modo').onclick = async () => {
@@ -553,6 +579,21 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('velo
  * sin enseñar ningún error: no falló nada, sólo pasó el tiempo. */
 
 (async () => {
+  // Google regresa con `?entrada=<boleto>`: se canjea por la cookie de este
+  // origen y se quita de la barra, para que un recargar no lo repita.
+  const u = new URL(location.href);
+  const entrada = u.searchParams.get('entrada');
+  if (entrada) {
+    u.searchParams.delete('entrada');
+    history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+    try {
+      await pedir('/auth/canje', { method: 'POST', body: { entrada } });
+    } catch (e) {
+      mostrar('v-correo');
+      $('err-correo').textContent = e.message;
+      return;
+    }
+  }
   try {
     await pedir('/yo');
     await entrar();
