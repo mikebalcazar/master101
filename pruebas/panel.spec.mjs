@@ -372,6 +372,11 @@ async function google(navegador) {
   // Un boleto inventado no entra, y se dice.
   await pagina.goto(`${BASE}/?entrada=boleto-inventado`, { waitUntil: 'domcontentloaded' });
   await pagina.waitForSelector('#v-correo:not([hidden])', { timeout: 15000 });
+  // #v-correo se ve desde el primer pintado: hay que esperar a que la API
+  // conteste el canje, no a la pantalla. Contra staging la respuesta tarda
+  // más que contra el banco, y leer antes deja el aviso vacío (run del
+  // 16-sep, 02:53Z).
+  await pagina.waitForFunction(() => document.getElementById('err-correo').textContent.trim() !== '', null, { timeout: 15000 });
   const malo = (await pagina.locator('#err-correo').innerText()).trim();
   rev(/ya no sirve/.test(malo), 'un boleto inventado no entra y se dice con palabras', malo);
   rev(!new URL(pagina.url()).searchParams.has('entrada'), 'y también se quita de la barra');
