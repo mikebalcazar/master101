@@ -184,8 +184,13 @@ async function recorrido(navegador) {
   rev((await pagina.inputValue('#a-id')) === 'prueba-nandu-cia', 'el identificador se sugiere del nombre, sin acentos ni símbolos', await pagina.inputValue('#a-id'));
   await pagina.fill('#a-id', ORG);
   await pagina.uncheck('#f-alta input[data-app="roster"]');
+  await pagina.fill('#a-razon', 'Prueba Ñandú SA de CV');
+  await pagina.fill('#a-rfc', 'pru010101aaa');
+  await pagina.fill('#a-telefono', '55 0000 0000');
   await pagina.fill('#a-dueno', `dueno-${ORG}@ejemplo.mx`);
   await pagina.fill('#a-dueno-nombre', 'Dueño de prueba');
+  await pagina.fill('#a-dueno-telefono', '55 1111 1111');
+  rev(await pagina.isHidden('#l-a-hasta'), 'con «cortesía» marcada no se pide fecha de pago');
   await pagina.click('#b-alta');
   await pagina.waitForSelector('#a-listo:not([hidden])', { timeout: 30000 });
   const listo = await pagina.textContent('#a-listo');
@@ -193,6 +198,8 @@ async function recorrido(navegador) {
   rev(/versión 3|versión [4-9]/.test(listo), 'y que su base está en la versión 3 o más', listo.match(/versión \d+/)?.[0] ?? '');
   rev(listo.includes(`dueno-${ORG}@ejemplo.mx`), 'y con qué correo entra el dueño');
   rev(/dash101, quell101, peek101, quote101/.test(listo) && !/roster101/.test(listo), 'y qué apps quedaron prendidas (roster no)', listo.match(/Apps prendidas: [^.]+/)?.[0] ?? '');
+  rev(/Cobro: cortesía/.test(listo), 'y que es cortesía');
+  rev(/director entra con/.test(listo) && /bienvenida/i.test(listo), 'y cómo entra su director y qué pasó con la bienvenida', listo.match(/La bienvenida[^.]*\./)?.[0] ?? '');
 
   const creada = (await json(`${BASE}/s101/admin/orgs`, { cabeceras: { Cookie: galletaSuper } })).cuerpo?.data?.filas?.find((o) => o.id === ORG);
   rev(!!creada && creada.activa === true, `GET /admin/orgs trae ${ORG}, activa`);
@@ -428,6 +435,66 @@ async function licencias(navegador) {
   await ctx.close();
 }
 
+/* ─────────────── plan y cobro (0.14.0) ───────────────
+ * La empresa se crea por la API con fecha de pago de ayer (vencida) y el
+ * panel la reabre marcando el pago, la vuelve cortesía y reenvía la
+ * bienvenida. Se borra al final. */
+const ORG_COBRO = `cobro-${ORG}`.slice(0, 40);
+async function cobro(navegador) {
+  console.log(`\n== plan y cobro (1440 × 900) ==`);
+  const { ctx, pagina, errores } = await contexto(navegador, 1440, 900);
+  const ayer = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const creada = await json(`${BASE}/s101/admin/orgs`, { method: 'POST', cabeceras: { Cookie: galletaSuper }, body: {
+    id: ORG_COBRO, nombre: 'Prueba Cobro', paga_hasta: ayer, director: { correo: `director-${ORG_COBRO}@ejemplo.mx`, nombre: 'Director Cobro' },
+  } });
+  rev(creada.estado === 201 && creada.cuerpo?.data?.org?.estado === 'sin_pago', 'la API crea una empresa pagada hasta ayer: nace «sin pago»', `${creada.estado} ${creada.cuerpo?.data?.org?.estado}`);
+
+  await entrarEnPantalla(pagina, SUPER);
+  await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 20000 });
+  await pagina.waitForSelector(`#e-filas tr[data-org="${ORG_COBRO}"]`, { timeout: 15000 });
+  const fila = await pagina.textContent(`#e-filas tr[data-org="${ORG_COBRO}"]`);
+  rev(/sin pago/.test(fila) && /venció el/.test(fila), 'la tabla la marca «sin pago» y dice cuándo venció', fila.match(/venció el [^\n]+/)?.[0]?.trim() ?? '');
+
+  await pagina.click(`#e-filas [data-gente="${ORG_COBRO}"]`);
+  await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 10000 });
+  rev(/Sin pago: venció el/.test(await pagina.textContent('#g-cobro')), 'el bloque «Plan y cobro» lo explica con palabras');
+  rev(/Director Cobro/.test(await pagina.textContent('#g-cobro')), 'y nombra al director');
+  rev((await pagina.inputValue('#g-dir-correo')) === `director-${ORG_COBRO}@ejemplo.mx`, 'los datos del director están en su formulario');
+
+  await pagina.fill('#g-hasta', manana);
+  await pagina.click('#g-pago');
+  await pagina.waitForFunction(() => /Pagada hasta el/.test(document.getElementById('g-cobro').textContent), null, { timeout: 15000 });
+  rev(true, '«Marcar pago» hasta mañana la deja pagada');
+  const abierta = await json(`${BASE}/s101/orgs/${ORG_COBRO}`, { cabeceras: { Cookie: galletaSuper, 'X-App': 'dash101' } });
+  rev(abierta.estado === 200, 'y la API ya deja entrar a sus apps', `${abierta.estado}`);
+
+  await pagina.click('#g-cortesia');
+  await pagina.waitForFunction(() => /Cortesía: no vence/.test(document.getElementById('g-cobro').textContent), null, { timeout: 15000 });
+  rev(true, '«Hacer cortesía» la deja sin vencimiento');
+
+  await pagina.fill('#g-rfc', 'pco010101aaa');
+  await pagina.click('#b-datos');
+  await pagina.waitForFunction(() => /Datos guardados/.test(document.getElementById('g-aviso').textContent), null, { timeout: 15000 });
+  const detalle = await json(`${BASE}/s101/admin/orgs/${ORG_COBRO}`, { cabeceras: { Cookie: galletaSuper } });
+  rev(detalle.cuerpo?.data?.rfc === 'PCO010101AAA', 'guardar datos manda el RFC en mayúsculas a la API', detalle.cuerpo?.data?.rfc);
+
+  await pagina.click('#g-bienvenida');
+  await pagina.waitForFunction(() => /bienvenida/i.test(document.getElementById('g-aviso').textContent), null, { timeout: 15000 });
+  rev(/no se mandó|no salió|enviada/i.test(await pagina.textContent('#g-aviso')), 'reenviar la bienvenida dice con palabras qué pasó', (await pagina.textContent('#g-aviso')).trim());
+  await pagina.waitForFunction(() => /Bienvenida|Pago|Cortesía/.test(document.getElementById('g-bitacora').textContent), null, { timeout: 15000 });
+  rev(/Pago/.test(await pagina.textContent('#g-bitacora')) && /Cortesía/.test(await pagina.textContent('#g-bitacora')), 'la bitácora apunta el pago y la cortesía en palabras');
+
+  const sobra = await pagina.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  rev(sobra <= 0, 'sin scroll horizontal en la pantalla de la empresa', `sobran ${sobra} px`);
+  rev(errores.length === 0, 'cero errores de JavaScript', errores.join(' | '));
+  await ctx.close();
+}
+
+async function barrerCobro() {
+  await json(`${BASE}/s101/admin/orgs/${ORG_COBRO}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } }).catch(() => null);
+}
+
 /** Lo que la prueba de licencias haya dejado (si tronó a medias), fuera. */
 async function barrerLicencias() {
   const lista = await json(`${BASE}/s101/licencias`, { cabeceras: { Cookie: galletaSuper } }).catch(() => null);
@@ -519,6 +586,7 @@ try {
   if (corre('control')) await control(navegador);
   if (corre('google')) await google(navegador);
   if (corre('licencias')) await licencias(navegador);
+  if (corre('cobro')) await cobro(navegador);
   if (corre('yoLento')) await yoLento(navegador);
 } catch (e) {
   fallas++;
@@ -526,6 +594,7 @@ try {
 } finally {
   await navegador.close();
   await barrerLicencias();
+  await barrerCobro();
   // Lo que se creó, se borra: DELETE /admin/orgs/:o sólo existe fuera de producción.
   const borrada = await json(`${BASE}/s101/admin/orgs/${ORG}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } }).catch(() => ({ estado: 0 }));
   console.log(`\n  ${borrada.estado === 200 ? 'ok   ' : 'AVISO'} la org de prueba ${ORG} ${borrada.estado === 200 ? 'se borró' : 'NO se pudo borrar (' + borrada.estado + ')'}`);

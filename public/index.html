@@ -124,16 +124,26 @@
 
 <!-- ALTA DE EMPRESA -->
 <main class="wrap" id="v-alta" hidden>
-  <div class="cab"><div><p class="eyebrow">Suite 101</p><h1>Alta de empresa</h1><div class="sub">Se crea la empresa, su base y su dueño, en ese orden.</div></div></div>
+  <div class="cab"><div><p class="eyebrow">Suite 101</p><h1>Alta de empresa</h1><div class="sub">En un paso: la empresa, su base, su director como dueño y el correo de bienvenida.</div></div></div>
   <form class="forma" id="f-alta" novalidate>
     <div class="dos">
       <label for="a-nombre">Nombre de la empresa<input id="a-nombre" autocomplete="organization" placeholder="Muebles Ramírez" required></label>
       <label for="a-id">Identificador<input id="a-id" autocapitalize="off" spellcheck="false" placeholder="muebles-ramirez" pattern="[a-z0-9-]{2,40}" required><span class="pista">Sale del nombre. Sólo minúsculas, números y guiones, de 2 a 40. No se cambia después: es el nombre de su base.</span></label>
     </div>
+    <div class="tres">
+      <label for="a-razon">Razón social <span class="opc">(opcional)</span><input id="a-razon" autocomplete="off" placeholder="Muebles Ramírez SA de CV"></label>
+      <label for="a-rfc">RFC <span class="opc">(opcional)</span><input id="a-rfc" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20"></label>
+      <label for="a-telefono">Teléfono de la empresa <span class="opc">(opcional)</span><input id="a-telefono" type="tel" autocomplete="off" inputmode="tel"></label>
+    </div>
     <div class="dos">
       <label for="a-moneda">Moneda<select id="a-moneda"><option value="MXN" selected>MXN · pesos</option><option value="USD">USD · dólares</option></select></label>
       <label for="a-plan">Plan <span class="opc">(etiqueta, por ahora)</span><input id="a-plan" placeholder="básico"></label>
     </div>
+    <fieldset class="apps-ini">
+      <legend>Cobro</legend>
+      <label><input type="checkbox" id="a-cortesia" checked> Cortesía: no vence nunca (para nosotros o para regalar)</label>
+      <label for="a-hasta" id="l-a-hasta" hidden>Pagada hasta<input id="a-hasta" type="date"><span class="pista">Vence al terminar ese día: sus apps se cierran hasta que marques el siguiente pago. El panel del director sigue abriendo.</span></label>
+    </fieldset>
     <fieldset class="apps-ini">
       <legend>Apps que arrancan prendidas</legend>
       <label><input type="checkbox" data-app="dash" checked> dash101 · finanzas</label>
@@ -143,9 +153,10 @@
       <label><input type="checkbox" data-app="roster"> roster101 · expedientes</label>
       <label><input type="checkbox" data-app="nest"> nest101 · despiece</label>
     </fieldset>
-    <div class="dos">
-      <label for="a-dueno">Correo del dueño<input id="a-dueno" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="dueno@empresa.mx" required><span class="pista">Queda como <b>owner</b> de la empresa. Entra a sus apps con ese correo.</span></label>
-      <label for="a-dueno-nombre">Nombre del dueño <span class="opc">(opcional)</span><input id="a-dueno-nombre" autocomplete="off"></label>
+    <div class="tres">
+      <label for="a-dueno">Correo del director<input id="a-dueno" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="director@empresa.mx" required><span class="pista">Queda como <b>dueño</b> de la empresa y le llega la bienvenida con la liga a su panel. Entra con ese correo.</span></label>
+      <label for="a-dueno-nombre">Nombre del director <span class="opc">(opcional)</span><input id="a-dueno-nombre" autocomplete="off"></label>
+      <label for="a-dueno-telefono">Teléfono del director <span class="opc">(opcional)</span><input id="a-dueno-telefono" type="tel" autocomplete="off" inputmode="tel"></label>
     </div>
     <div class="err" id="err-alta"></div>
     <div class="acciones"><button class="btn suave" type="button" id="a-cancelar">Cancelar</button><button class="btn" type="submit" id="b-alta">Crear la empresa</button></div>
@@ -160,6 +171,35 @@
     <div><p class="eyebrow" id="g-id"></p><h1 id="g-nombre"></h1><div class="sub" id="g-sub"></div></div>
   </div>
   <div class="aviso" id="g-aviso" hidden></div>
+
+  <h2 class="h2">Plan y cobro</h2>
+  <p class="nota" id="g-cobro"></p>
+  <form class="forma" id="f-cobro" novalidate>
+    <div class="tres">
+      <label for="g-hasta">Pagada hasta<input id="g-hasta" type="date"></label>
+      <label>&nbsp;<button class="btn" type="submit" id="g-pago">Marcar pago</button></label>
+      <label>&nbsp;<button class="btn suave" type="button" id="g-cortesia">Hacer cortesía</button></label>
+    </div>
+    <div class="err" id="err-cobro"></div>
+  </form>
+
+  <h2 class="h2">Datos de la empresa y del director</h2>
+  <form class="forma" id="f-datos" novalidate>
+    <div class="tres">
+      <label for="g-razon">Razón social<input id="g-razon" autocomplete="off"></label>
+      <label for="g-rfc">RFC<input id="g-rfc" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20"></label>
+      <label for="g-telefono">Teléfono de la empresa<input id="g-telefono" type="tel" autocomplete="off" inputmode="tel"></label>
+    </div>
+    <div class="tres">
+      <label for="g-dir-correo">Correo del director<input id="g-dir-correo" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false"><span class="pista">A este correo va la bienvenida. Quién es dueño se cambia abajo, en la gente.</span></label>
+      <label for="g-dir-nombre">Nombre del director<input id="g-dir-nombre" autocomplete="off"></label>
+      <label for="g-dir-telefono">Teléfono del director<input id="g-dir-telefono" type="tel" autocomplete="off" inputmode="tel"></label>
+    </div>
+    <div class="err" id="err-datos"></div>
+    <div class="acciones"><button class="btn suave" type="button" id="g-bienvenida">Reenviar la bienvenida</button><button class="btn" type="submit" id="b-datos">Guardar datos</button></div>
+  </form>
+
+  <h2 class="h2">Gente</h2>
   <div class="tabla"><table>
     <thead><tr><th>Correo</th><th>Nombre</th><th>Rol</th><th></th></tr></thead>
     <tbody id="g-filas"></tbody>
