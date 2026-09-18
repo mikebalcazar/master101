@@ -72,7 +72,7 @@ function cuando(iso) {
 }
 
 /** Cómo se lee un renglón de la bitácora del panel. */
-const CAMPOS = { creada: 'Se creó la empresa', nombre: 'Nombre', plan: 'Plan', moneda: 'Moneda', activa: 'Activa', miembro: 'Gente', superadmin: 'Superadmin' };
+const CAMPOS = { creada: 'Se creó la empresa', nombre: 'Nombre', plan: 'Plan', moneda: 'Moneda', activa: 'Activa', miembro: 'Gente', superadmin: 'Superadmin', pago: 'Pago', cortesia: 'Cortesía', paga_hasta: 'Pagada hasta', bienvenida: 'Bienvenida', razon_social: 'Razón social', rfc: 'RFC', telefono: 'Teléfono', director_correo: 'Correo del director', director_nombre: 'Nombre del director', director_telefono: 'Teléfono del director' };
 function campoLegible(campo) {
   if (campo.startsWith('apps.')) { const k = campo.slice(5); const app = APPS.find(([a]) => a === k); return `App ${app ? app[1] : k}`; }
   return CAMPOS[campo] || campo;
@@ -359,11 +359,11 @@ function pintarEmpresas() {
   $('e-filas').innerHTML = EMPRESAS.map((o) => `
     <tr data-org="${esc(o.id)}" class="${o.activa ? '' : 'inactiva'}">
       <td><div class="n">${esc(o.nombre)}</div><div class="m mono">${esc(o.id)} · ${esc(o.moneda || 'MXN')}</div></td>
-      <td>${o.plan ? esc(o.plan) : '<span class="nota">—</span>'}</td>
+      <td>${o.plan ? esc(o.plan) : '<span class="nota">—</span>'}<div class="m">${esc(cobroCorto(o))}</div></td>
       ${APPS.map(([k, nombre]) => `<td class="app"><label class="sw" title="${esc(nombre)} · ${esc(o.nombre)}"><input type="checkbox" data-app="${k}" data-org="${esc(o.id)}"${o.apps?.[k] ? ' checked' : ''}${o.activa ? '' : ' disabled'}><i></i></label></td>`).join('')}
       <td class="r num" data-personas="${esc(o.id)}">${esc(o.personas ?? '—')}</td>
       <td class="fecha" data-entrada="${esc(o.id)}">${o.ultima_entrada ? esc(cuando(o.ultima_entrada)) : '<span class="nota">nadie aún</span>'}</td>
-      <td>${o.activa ? '<span class="chip ok">activa</span>' : '<span class="chip mal">suspendida</span>'}</td>
+      <td>${chipEstado(o)}</td>
       <td><div class="acciones">
         <button class="btn suave chico" data-gente="${esc(o.id)}">Gente</button>
         <button class="btn ${o.activa ? 'peligro' : ''} chico" data-suspender="${esc(o.id)}">${o.activa ? 'Suspender' : 'Reactivar'}</button>
@@ -374,6 +374,19 @@ function pintarEmpresas() {
   for (const b of $('e-filas').querySelectorAll('[data-suspender]')) b.onclick = () => suspender(b.dataset.suspender, b);
   for (const b of $('e-filas').querySelectorAll('[data-gente]')) b.onclick = () => irAGente(b.dataset.gente);
 }
+
+/** Cómo se lee el cobro de una empresa en una línea. */
+function cobroCorto(o) {
+  if (o.cortesia) return 'cortesía';
+  if (o.paga_hasta) return `${o.estado === 'sin_pago' ? 'venció el' : 'hasta el'} ${diaLegible(o.paga_hasta)}`;
+  return 'sin fecha de pago';
+}
+function chipEstado(o) {
+  if (!o.activa) return '<span class="chip mal">suspendida</span>';
+  if (o.estado === 'sin_pago') return '<span class="chip mal">sin pago</span>';
+  return '<span class="chip ok">activa</span>';
+}
+const bienvenidaLegible = (b) => !b ? '' : b.enviado ? 'La bienvenida ya le llegó por correo.' : b.motivo === 'correo_apagado_fuera_de_produccion' ? 'La bienvenida no se mandó: fuera de producción el correo está apagado.' : `La bienvenida no salió (${b.motivo}); puedes reenviarla desde «Gente».`;
 
 /** Sustituye una empresa en la lista con lo que contestó la API y repinta. */
 function reemplaza(org) {
@@ -435,10 +448,12 @@ const SLUG = /^[a-z0-9-]{2,40}$/;
 
 let idTocado = false;
 $('a-nombre').oninput = () => { if (!idTocado) $('a-id').value = slugDe($('a-nombre').value); };
+$('a-cortesia').onchange = () => { $('l-a-hasta').hidden = $('a-cortesia').checked; };
 $('a-id').oninput = () => { idTocado = $('a-id').value !== ''; };
 
 function irAAlta() {
   $('f-alta').reset();
+  $('l-a-hasta').hidden = true;
   idTocado = false;
   $('err-alta').textContent = '';
   $('a-listo').hidden = true;
@@ -456,7 +471,11 @@ $('f-alta').onsubmit = async (ev) => {
   const errores = [];
   if (!nombre) errores.push('el nombre');
   if (!SLUG.test(id)) errores.push('el identificador (minúsculas, números y guiones, de 2 a 40)');
-  if (!/^\S+@\S+\.\S+$/.test(dueno)) errores.push('el correo del dueño');
+  if (!/^\S+@\S+\.\S+$/.test(dueno)) errores.push('el correo del director');
+
+  const cortesia = $('a-cortesia').checked;
+  const hasta = $('a-hasta').value;
+  if (!cortesia && !hasta) errores.push('hasta qué día está pagada (o márcala como cortesía)');
   if (errores.length) { $('err-alta').textContent = `Revisa ${errores.join(', ')}.`; return; }
 
   const apps = {};
@@ -464,22 +483,24 @@ $('f-alta').onsubmit = async (ev) => {
   const b = $('b-alta'); b.disabled = true; b.textContent = 'Creando…';
   $('err-alta').textContent = '';
   try {
-    // Primero la empresa (y su base, que la API crea al vuelo); luego su dueño.
-    const creada = await pedir('/admin/orgs', { method: 'POST', body: { id, nombre, plan: $('a-plan').value.trim() || undefined, moneda: $('a-moneda').value, apps } });
-    let miembro = null;
-    let fallaDueno = null;
-    try {
-      miembro = await pedir(`/admin/orgs/${encodeURIComponent(id)}/miembros`, { method: 'POST', body: { correo: dueno, nombre: $('a-dueno-nombre').value.trim() || undefined, rol: 'owner' } });
-    } catch (e) { fallaDueno = e; }
+    // 0.14.0: un solo paso. La API crea la empresa, su base, al director como
+    // dueño y le manda la bienvenida.
+    const creada = await pedir('/admin/orgs', { method: 'POST', body: {
+      id, nombre, plan: $('a-plan').value.trim() || undefined, moneda: $('a-moneda').value, apps,
+      razon_social: $('a-razon').value.trim() || undefined, rfc: $('a-rfc').value.trim().toUpperCase() || undefined, telefono: $('a-telefono').value.trim() || undefined,
+      director: { correo: dueno, nombre: $('a-dueno-nombre').value.trim() || undefined, telefono: $('a-dueno-telefono').value.trim() || undefined },
+      cortesia, paga_hasta: cortesia ? null : hasta,
+    } });
+    const miembro = creada.director;
 
     const org = creada.org ?? {};
     const prendidas = APPS.filter(([k]) => org.apps?.[k]).map(([, n]) => n);
     $('f-alta').hidden = true;
     $('a-listo').innerHTML = `<b>${esc(org.nombre)}</b> (<span class="mono">${esc(org.id)}</span>) quedó creada, con su base en la versión ${esc(creada.org_db_version)}.<br>`
-      + (prendidas.length ? `Apps prendidas: ${esc(prendidas.join(', '))}.` : 'Ninguna app prendida todavía.') + '<br>'
+      + (prendidas.length ? `Apps prendidas: ${esc(prendidas.join(', '))}.` : 'Ninguna app prendida todavía.') + ` Cobro: ${esc(cobroCorto(org))}.<br>`
       + (miembro
-        ? `Entra su dueño con <b>${esc(miembro.correo)}</b> (rol ${esc(ROLES[miembro.rol] || miembro.rol)}): le llega un código a ese correo en cualquiera de sus apps.`
-        : `<span style="color:var(--alerta)">La empresa se creó pero el dueño no: ${esc(fallaDueno?.message || '')}. Agrégalo desde «Gente».</span>`)
+        ? `Su director entra con <b>${esc(miembro.correo)}</b> (rol ${esc(ROLES[miembro.rol] || miembro.rol)}): le llega un código a ese correo en su panel o en cualquiera de sus apps. ${esc(bienvenidaLegible(creada.bienvenida))}`
+        : `<span style="color:var(--alerta)">La empresa se creó sin director. Agrégalo desde «Gente».</span>`)
       + `<div class="acciones" style="margin-top:12px"><button class="btn suave chico" id="a-ver-gente">Ver su gente</button><button class="btn chico" id="a-ver-empresas">Ir a empresas</button></div>`;
     $('a-listo').hidden = false;
     $('a-ver-gente').onclick = () => irAGente(id);
@@ -504,9 +525,89 @@ async function irAGente(id) {
   $('g-bitacora').innerHTML = '';
   $('f-gente').reset();
   $('err-gente').textContent = '';
+  $('err-cobro').textContent = '';
+  $('err-datos').textContent = '';
+  pintarCobro();
   mostrar('v-gente');
   await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id)]);
 }
+
+/* ─────────────── plan y cobro, datos de la empresa (0.14.0) ─────────────── */
+
+function pintarCobro() {
+  const o = ORG;
+  const quien = o.director_correo ? ` Director: ${o.director_nombre ? `${o.director_nombre}, ` : ''}${o.director_correo}.` : ' Sin director apuntado.';
+  const texto = !o.activa ? 'Suspendida por nosotros: nadie entra hasta reactivarla.'
+    : o.cortesia ? 'Cortesía: no vence nunca.'
+    : o.estado === 'sin_pago' ? `Sin pago: venció el ${diaLegible(o.paga_hasta)}. Sus apps están cerradas; su panel sigue abriendo.`
+    : `Pagada hasta el ${diaLegible(o.paga_hasta)} (${o.origen_pago === 'stripe' ? 'Stripe' : 'a mano'}).`;
+  $('g-cobro').textContent = texto + quien + (o.bienvenida_at ? ` Bienvenida enviada el ${cuando(o.bienvenida_at)}.` : ' La bienvenida no ha salido.');
+  $('g-hasta').value = o.paga_hasta || '';
+  $('g-cortesia').textContent = o.cortesia ? 'Quitar la cortesía' : 'Hacer cortesía';
+  $('g-razon').value = o.razon_social || '';
+  $('g-rfc').value = o.rfc || '';
+  $('g-telefono').value = o.telefono || '';
+  $('g-dir-correo').value = o.director_correo || '';
+  $('g-dir-nombre').value = o.director_nombre || '';
+  $('g-dir-telefono').value = o.director_telefono || '';
+}
+
+function tomaOrg(org) {
+  ORG = org;
+  reemplaza(org);
+  pintarCobro();
+}
+
+$('f-cobro').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const hasta = $('g-hasta').value;
+  if (!hasta) { $('err-cobro').textContent = 'Escoge hasta qué día está pagada.'; return; }
+  const b = $('g-pago'); b.disabled = true; $('err-cobro').textContent = '';
+  try {
+    tomaOrg(await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/pago`, { method: 'POST', body: { hasta } }));
+    aviso('g-aviso', `Pagada hasta el ${diaLegible(hasta)}. Sus apps abren en la siguiente petición.`, 'bien');
+    await cargarBitacoraDe(ORG.id);
+  } catch (e) { $('err-cobro').textContent = e.message; }
+  finally { b.disabled = false; }
+};
+
+$('g-cortesia').onclick = async () => {
+  const b = $('g-cortesia'); b.disabled = true; $('err-cobro').textContent = '';
+  try {
+    const cortesia = !ORG.cortesia;
+    tomaOrg(await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}`, { method: 'PATCH', body: cortesia ? { cortesia: true, paga_hasta: null } : { cortesia: false } }));
+    aviso('g-aviso', cortesia ? `${ORG.nombre} es cortesía: no vence.` : `${ORG.nombre} ya no es cortesía: ${ORG.paga_hasta ? `vence el ${diaLegible(ORG.paga_hasta)}` : 'marca hasta cuándo está pagada o sus apps quedan cerradas'}.`, cortesia ? 'bien' : 'mal');
+    await cargarBitacoraDe(ORG.id);
+  } catch (e) { $('err-cobro').textContent = e.message; }
+  finally { b.disabled = false; }
+};
+
+$('f-datos').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const dc = $('g-dir-correo').value.trim().toLowerCase();
+  if (dc && !/^\S+@\S+\.\S+$/.test(dc)) { $('err-datos').textContent = 'El correo del director no se ve bien.'; return; }
+  const b = $('b-datos'); b.disabled = true; $('err-datos').textContent = '';
+  try {
+    tomaOrg(await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}`, { method: 'PATCH', body: {
+      razon_social: $('g-razon').value.trim() || null, rfc: $('g-rfc').value.trim().toUpperCase() || null, telefono: $('g-telefono').value.trim() || null,
+      director_correo: dc || null, director_nombre: $('g-dir-nombre').value.trim() || null, director_telefono: $('g-dir-telefono').value.trim() || null,
+    } }));
+    aviso('g-aviso', 'Datos guardados.', 'bien');
+    await cargarBitacoraDe(ORG.id);
+  } catch (e) { $('err-datos').textContent = e.message; }
+  finally { b.disabled = false; }
+};
+
+$('g-bienvenida').onclick = async () => {
+  const b = $('g-bienvenida'); b.disabled = true; $('err-datos').textContent = '';
+  try {
+    const r = await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/bienvenida`, { method: 'POST', body: { correo: $('g-dir-correo').value.trim().toLowerCase() || undefined } });
+    aviso('g-aviso', r.enviado ? `Bienvenida enviada a ${r.correo}.` : bienvenidaLegible(r), r.enviado ? 'bien' : 'mal');
+    if (r.enviado) { ORG = { ...ORG, bienvenida_at: new Date().toISOString() }; pintarCobro(); }
+    await cargarBitacoraDe(ORG.id);
+  } catch (e) { $('err-datos').textContent = e.message; }
+  finally { b.disabled = false; }
+};
 
 async function cargarBitacoraDe(id) {
   try {
