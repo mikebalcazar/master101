@@ -414,12 +414,34 @@ async function google(navegador) {
 
 /* ─────────────── ─────────────── */
 
+/** Con red lenta, /yo contesta después de que la persona ya tecleó su correo.
+ *  La pantalla NO debe regresarla a la primera vista cuando por fin llega el
+ *  401. Pasó de verdad en peek101 el 18-sep-2026 (desde el sandbox, donde /yo
+ *  tarda ~700 ms): el botón «Olvidé mi contraseña» desaparecía debajo del
+ *  dedo. Aquí la demora se fabrica, para que se mida igual en cualquier red. */
+async function yoLento(navegador) {
+  console.log(`\n== /yo tarda en contestar ==  ${BASE}`);
+  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 }, locale: 'es-MX' });
+  const pagina = await ctx.newPage();
+  await pagina.route('**/s101/yo', async (ruta) => { await dormir(2500); await ruta.continue(); });
+  await pagina.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+  await pagina.waitForSelector('#v-correo:not([hidden])', { timeout: 15000 });
+  await pagina.fill('#correo', SUPER);
+  await pagina.click('#b-correo');
+  await pagina.waitForSelector('#v-clave:not([hidden])', { timeout: 15000 });
+  await dormir(3500); // para cuando ya llegó el 401 tardío
+  rev(await pagina.isVisible('#v-clave') && await pagina.isVisible('#olvide'),
+    'el 401 tardío de /yo no regresa a la persona a la pantalla del correo');
+  await ctx.close();
+}
+
 const navegador = await chromium.launch(EJECUTABLE ? { executablePath: EJECUTABLE } : {});
 try {
   await recorrido(navegador);
   await escritorio(navegador);
   await control(navegador);
   await google(navegador);
+  await yoLento(navegador);
 } catch (e) {
   fallas++;
   console.log(`  FALLA la prueba tronó: ${e?.stack || e}`);

@@ -672,6 +672,12 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('velo
     await pedir('/yo');
     await entrar();
   } catch {
-    mostrar('v-correo');
+    /* La cookie no vive: se pide el correo, pero SÓLO si la persona no se
+     * adelantó. Con red lenta, /yo contesta después de que ya tecleó su correo
+     * y está en la contraseña, y regresarla a la primera pantalla es un rebote
+     * que nadie entiende: el botón «Olvidé mi contraseña» desaparecía debajo
+     * del dedo. Medido en peek101 el 18-sep-2026 desde el sandbox (/yo tarda
+     * ~700 ms ahí); en el runner contesta antes de que nadie teclee. */
+    if (!correo) mostrar('v-correo');
   }
 })();
