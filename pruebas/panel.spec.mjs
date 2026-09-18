@@ -364,6 +364,78 @@ async function escritorio(navegador) {
   await ctx.close();
 }
 
+/* ─────────────── licencias (contrato 0.13.0) ───────────────
+ * Mike crea una cortesía desde la pantalla, la app la activa (aquí, por la
+ * API, como lo hará draw101), el detalle enseña la máquina, se libera y se
+ * borra. Lo que se crea se borra aquí mismo; el `finally` de abajo barre lo
+ * que quede. */
+
+const LIC_CLIENTE = `Humo licencias ${ORG}`;
+
+async function licencias(navegador) {
+  console.log(`\n== licencias (1440 × 900) ==`);
+  const { ctx, pagina, errores } = await contexto(navegador, 1440, 900);
+  await entrarEnPantalla(pagina, SUPER);
+  await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 20000 });
+  await pagina.click('#menu [data-ir="licencias"]');
+  await pagina.waitForSelector('#v-licencias:not([hidden])', { timeout: 10000 });
+  await pagina.waitForFunction(() => !/Cargando/.test(document.getElementById('l-filas').textContent), null, { timeout: 15000 });
+  rev(true, 'el menú lleva a Licencias y la lista carga');
+
+  await pagina.fill('#l-cliente', LIC_CLIENTE);
+  await pagina.check('#l-cortesia');
+  await pagina.fill('#l-notas', 'la borra la propia prueba');
+  await pagina.click('#b-licencia');
+  await pagina.waitForFunction(() => /T101-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}/.test(document.getElementById('l-aviso').textContent), null, { timeout: 20000 });
+  const clave = (await pagina.textContent('#l-aviso')).match(/T101-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}/)[0];
+  rev(true, 'se crea una cortesía y la pantalla dice la clave', clave);
+  await pagina.waitForSelector('#l-detalle:not([hidden])', { timeout: 10000 });
+  rev((await pagina.textContent('#ld-clave')).trim() === clave, 'el detalle se abre solo con esa clave');
+  const fila = pagina.locator(`#l-filas tr:has(td.mono:text-is("${clave}"))`);
+  rev((await fila.count()) === 1, 'la lista tiene su fila');
+  rev(/cortesía/.test(await fila.textContent()), 'y dice que es cortesía');
+  const id = await fila.getAttribute('data-lic');
+
+  // La app activa, sin sesión: lo mismo que hará draw101 al instalar.
+  const huella = `panel-${ORG}-0123456789abcdef`.replace(/[^A-Za-z0-9_-]/g, '-');
+  const act = await json(`${BASE}/s101/licencias/activar`, { method: 'POST', body: { clave, huella, version: 'prueba' } });
+  rev(act.estado === 201 && typeof act.cuerpo?.data?.token === 'string', 'la app activa la clave por la API y recibe token', `${act.estado} ${act.cuerpo?.error ?? ''}`);
+
+  await pagina.click('#l-refrescar');
+  await pagina.waitForFunction((i) => /1 de 1/.test(document.querySelector(`#l-filas tr[data-lic="${i}"]`)?.textContent || ''), id, { timeout: 15000 });
+  rev(true, '«Refrescar» cuenta 1 de 1 máquinas en la lista');
+  await pagina.click(`#l-filas tr[data-lic="${id}"] [data-ver-lic]`);
+  await pagina.waitForSelector(`#ld-activaciones tr[data-huella="${huella}"]`, { timeout: 15000 });
+  rev(true, 'el detalle muestra la máquina activada');
+  rev(/Se activó una máquina/.test(await pagina.textContent('#ld-bitacora')), 'la bitácora dice que se activó una máquina');
+
+  await pagina.click(`#ld-activaciones [data-liberar="${huella}"]`);
+  await pagina.waitForFunction((h) => /liberada/.test(document.querySelector(`#ld-activaciones tr[data-huella="${h}"]`)?.textContent || ''), huella, { timeout: 15000 });
+  rev(true, '«Liberar» deja la máquina como liberada');
+  const late = await json(`${BASE}/s101/licencias/latido`, { method: 'POST', body: { token: act.cuerpo.data.token, huella } });
+  rev(late.estado === 403 && late.cuerpo?.error === 'maquina_desconocida', 'y su latido ya no pasa', `${late.estado} ${late.cuerpo?.error}`);
+
+  await pagina.click('#ld-borrar');
+  rev(/Seguro/.test(await pagina.textContent('#ld-borrar')), 'borrar pide un segundo clic');
+  await pagina.click('#ld-borrar');
+  await pagina.waitForFunction((i) => !document.querySelector(`#l-filas tr[data-lic="${i}"]`) && document.getElementById('l-detalle').hidden, id, { timeout: 15000 });
+  rev(true, 'con el segundo clic la licencia se va de la lista');
+  const ya = await json(`${BASE}/s101/licencias/activar`, { method: 'POST', body: { clave, huella } });
+  rev(ya.estado === 404, 'y su clave ya no activa nada', `${ya.estado} ${ya.cuerpo?.error}`);
+
+  await sinScroll(pagina, 'la pantalla de licencias');
+  rev(errores.length === 0, 'cero errores de JavaScript', errores.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+/** Lo que la prueba de licencias haya dejado (si tronó a medias), fuera. */
+async function barrerLicencias() {
+  const lista = await json(`${BASE}/s101/licencias`, { cabeceras: { Cookie: galletaSuper } }).catch(() => null);
+  for (const l of lista?.cuerpo?.data?.filas ?? []) {
+    if (l.cliente === LIC_CLIENTE) await json(`${BASE}/s101/licencias/${l.id}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } }).catch(() => null);
+  }
+}
+
 /* ─────────────── entrar con Google ───────────────
  * Contra el banco falso se recorre el camino entero: el botón, la API «manda
  * a Google» y regresa con `?entrada=`, la app canjea el boleto y queda
@@ -436,17 +508,24 @@ async function yoLento(navegador) {
 }
 
 const navegador = await chromium.launch(EJECUTABLE ? { executablePath: EJECUTABLE } : {});
+/* RECORRIDOS=licencias,google limita qué se corre: para medir uno solo desde el
+ * sandbox sin crear y borrar una empresa cada vez. Sin la variable corre todo,
+ * que es lo que hace el corredor. */
+const SOLO = String(process.env.RECORRIDOS || '').split(',').map((x) => x.trim()).filter(Boolean);
+const corre = (nombre) => !SOLO.length || SOLO.includes(nombre);
 try {
-  await recorrido(navegador);
-  await escritorio(navegador);
-  await control(navegador);
-  await google(navegador);
-  await yoLento(navegador);
+  if (corre('recorrido')) await recorrido(navegador);
+  if (corre('escritorio')) await escritorio(navegador);
+  if (corre('control')) await control(navegador);
+  if (corre('google')) await google(navegador);
+  if (corre('licencias')) await licencias(navegador);
+  if (corre('yoLento')) await yoLento(navegador);
 } catch (e) {
   fallas++;
   console.log(`  FALLA la prueba tronó: ${e?.stack || e}`);
 } finally {
   await navegador.close();
+  await barrerLicencias();
   // Lo que se creó, se borra: DELETE /admin/orgs/:o sólo existe fuera de producción.
   const borrada = await json(`${BASE}/s101/admin/orgs/${ORG}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } }).catch(() => ({ estado: 0 }));
   console.log(`\n  ${borrada.estado === 200 ? 'ok   ' : 'AVISO'} la org de prueba ${ORG} ${borrada.estado === 200 ? 'se borró' : 'NO se pudo borrar (' + borrada.estado + ')'}`);
