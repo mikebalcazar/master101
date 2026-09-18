@@ -146,7 +146,7 @@ input[type="checkbox"]{width:18px;height:18px;padding:0;margin:0;accent-color:va
 @media (max-width:560px){
   .barra{padding:10px 14px;gap:10px}
   .logo .sub{display:none}
-  .menu{order:3;width:100%;gap:0}
+  .menu{order:3;width:100%;gap:0;flex-wrap:wrap}
   .menu button,.menu a{padding:7px 9px;font-size:13px}
   .wrap{padding:18px 14px 50px}
   .cab h1{font-size:21px}
