@@ -96,7 +96,7 @@ let YO = null;          // lo que dijo /yo
 let EMPRESAS = [];      // lo último que contestó GET /admin/orgs
 let ORG = null;         // la empresa abierta en «gente»
 let correo = '';
-const VISTAS = ['v-correo', 'v-clave', 'v-codigo', 'v-nueva', 'v-nomanda', 'v-cargando', 'v-empresas', 'v-alta', 'v-gente', 'v-super'];
+const VISTAS = ['v-correo', 'v-clave', 'v-codigo', 'v-nueva', 'v-nomanda', 'v-cargando', 'v-empresas', 'v-alta', 'v-gente', 'v-super', 'v-licencias'];
 function mostrar(cual) {
   for (const v of VISTAS) $(v).hidden = v !== cual;
   for (const b of document.querySelectorAll('#menu [data-ir]')) b.classList.toggle('activo', `v-${b.dataset.ir}` === cual);
@@ -417,7 +417,7 @@ async function suspender(id, boton) {
 $('e-refrescar').onclick = irAEmpresas;
 $('e-nueva').onclick = () => irAAlta();
 for (const b of document.querySelectorAll('#menu [data-ir]')) {
-  b.onclick = () => (b.dataset.ir === 'alta' ? irAAlta() : b.dataset.ir === 'super' ? irASuper() : irAEmpresas());
+  b.onclick = () => (b.dataset.ir === 'alta' ? irAAlta() : b.dataset.ir === 'super' ? irASuper() : b.dataset.ir === 'licencias' ? irALicencias() : irAEmpresas());
 }
 
 /* ─────────────── alta de empresa ─────────────── */
@@ -647,6 +647,195 @@ $('f-super').onsubmit = async (ev) => {
   } finally { b.disabled = false; b.textContent = 'Agregar'; }
 };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('velo').hidden) $('q-cancelar').click(); });
+
+/* ─────────────── licencias (contrato 0.13.0) ───────────────
+ * Las suscripciones de las apps que se venden (draw101 primero). Mike crea la
+ * clave, marca el pago a mano hasta que haya pasarela, sube lugares, suspende
+ * y ve en qué máquinas está. Las reglas viven en la API; aquí sólo se
+ * enseñan sus respuestas. Decisiones de Mike del 18-sep-2026. */
+
+let LIC = null;          // la licencia abierta en el detalle
+
+const diaLegible = (d) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString('es-MX', { timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+function estadoDe(l) {
+  if (l.estado === 'suspendida') return ['suspendida', 'mal'];
+  if (l.vigente) return [l.cortesia ? 'cortesía' : 'vigente', 'bien'];
+  return ['sin pago', 'mal'];
+}
+const ACCIONES = { crear: 'Se creó', cambiar: 'Cambio', pago: 'Pago', activar: 'Se activó una máquina', latido_negado: 'Latido negado', desactivar: 'Se liberó una máquina', borrar: 'Se borró' };
+function detalleLegible(d) {
+  if (!d) return '—';
+  try {
+    const o = typeof d === 'string' ? JSON.parse(d) : d;
+    if (o.campo) return `${o.campo}: ${valorLegible(String(o.antes ?? ''))} → ${valorLegible(String(o.despues ?? ''))}`;
+    if (o.hasta) return `hasta ${diaLegible(o.hasta)}${o.origen ? ` (${o.origen})` : ''}${o.referencia ? ` · ${o.referencia}` : ''}`;
+    if (o.huella) return `máquina ${String(o.huella).slice(0, 12)}…${o.motivo ? ` · ${o.motivo}` : ''}${o.version ? ` · v${o.version}` : ''}`;
+    return Object.entries(o).map(([k, v]) => `${k}: ${v ?? '—'}`).join(' · ');
+  } catch { return String(d); }
+}
+
+async function irALicencias() {
+  aviso('l-aviso', '');
+  $('l-filas').innerHTML = '<tr><td colspan="7" class="nota">Cargando…</td></tr>';
+  $('f-licencia').reset();
+  $('err-licencia').textContent = '';
+  $('l-detalle').hidden = true;
+  LIC = null;
+  mostrar('v-licencias');
+  await cargarLicencias();
+}
+
+async function cargarLicencias() {
+  try {
+    const d = await pedir('/licencias');
+    const filas = d.filas ?? [];
+    $('l-sub').textContent = `${filas.length} licencia${filas.length === 1 ? '' : 's'}. Quién tiene clave, hasta cuándo pagó y en cuántas máquinas está.`;
+    if (!filas.length) { $('l-filas').innerHTML = '<tr><td colspan="7" class="nota">Todavía no hay licencias. Crea la primera abajo.</td></tr>'; return; }
+    $('l-filas').innerHTML = filas.map((l) => {
+      const [texto, tono] = estadoDe(l);
+      return `<tr data-lic="${esc(l.id)}">
+        <td>${esc(l.cliente)}${l.correo ? `<div class="nota">${esc(l.correo)}</div>` : ''}</td>
+        <td class="mono">${esc(l.clave)}</td>
+        <td>${esc(l.programa)}</td>
+        <td class="r">${l.activaciones} de ${l.lugares}</td>
+        <td>${l.cortesia ? 'cortesía' : esc(diaLegible(l.paga_hasta))}</td>
+        <td><span class="${tono}">${texto}</span></td>
+        <td><div class="acciones"><button class="btn suave chico" data-ver-lic="${esc(l.id)}">Ver</button></div></td>
+      </tr>`;
+    }).join('');
+    for (const btn of $('l-filas').querySelectorAll('[data-ver-lic]')) btn.onclick = () => abrirLicencia(btn.dataset.verLic);
+  } catch (e) {
+    $('l-filas').innerHTML = '';
+    aviso('l-aviso', e.message);
+  }
+}
+
+async function abrirLicencia(id) {
+  aviso('ld-aviso', '');
+  try {
+    const l = await pedir(`/licencias/${encodeURIComponent(id)}`);
+    LIC = l;
+    const [texto] = estadoDe(l);
+    $('ld-titulo').textContent = `${l.cliente} · ${l.programa}`;
+    $('ld-clave').textContent = l.clave;
+    $('ld-resumen').textContent = `${texto}${l.cortesia ? '' : ` · pagada hasta ${diaLegible(l.paga_hasta)}`} · ${l.lugares} máquina${l.lugares === 1 ? '' : 's'} a la vez · plan ${l.plan}${l.notas ? ` · ${l.notas}` : ''}`;
+    $('ld-hasta').value = l.paga_hasta || '';
+    $('ld-lugares').value = l.lugares;
+    $('ld-suspender').textContent = l.estado === 'suspendida' ? 'Reanudar' : 'Suspender';
+    $('ld-borrar').textContent = 'Borrar'; delete $('ld-borrar').dataset.seguro;
+    const acts = l.activaciones ?? [];
+    $('ld-activaciones').innerHTML = acts.length ? acts.map((a) => `<tr data-huella="${esc(a.huella)}">
+        <td class="mono">${esc(a.huella.slice(0, 16))}…</td>
+        <td>${a.version ? esc(a.version) : '—'}</td>
+        <td class="fecha">${esc(cuando(a.alta_at))}</td>
+        <td class="fecha">${esc(cuando(a.ultimo_latido_at))}</td>
+        <td>${a.activa ? '<span class="bien">activa</span>' : '<span class="nota">liberada</span>'}</td>
+        <td>${a.activa ? `<button class="btn suave chico" data-liberar="${esc(a.huella)}">Liberar</button>` : ''}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="nota">Ninguna máquina ha activado esta clave.</td></tr>';
+    for (const btn of $('ld-activaciones').querySelectorAll('[data-liberar]')) btn.onclick = () => liberar(btn.dataset.liberar, btn);
+    const bit = l.bitacora ?? [];
+    $('ld-bitacora').innerHTML = bit.length ? bit.map((b) => `<tr>
+        <td class="fecha">${esc(cuando(b.cuando))}</td>
+        <td class="mono">${esc(b.quien)}</td>
+        <td>${esc(ACCIONES[b.accion] || b.accion)}</td>
+        <td>${esc(detalleLegible(b.detalle))}</td>
+      </tr>`).join('') : '<tr><td colspan="4" class="nota">Nada apuntado todavía.</td></tr>';
+    $('l-detalle').hidden = false;
+    $('l-detalle').scrollIntoView({ block: 'start' });
+  } catch (e) {
+    aviso('l-aviso', e.message);
+  }
+}
+
+async function liberar(huella, btn) {
+  btn.disabled = true;
+  try {
+    await pedir(`/licencias/${encodeURIComponent(LIC.id)}/desactivar`, { method: 'POST', body: { huella } });
+    aviso('ld-aviso', 'Lugar liberado. Esa máquina tendrá que volver a activar.', 'bien');
+    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+  } catch (e) { aviso('ld-aviso', e.message); btn.disabled = false; }
+}
+
+$('l-refrescar').onclick = cargarLicencias;
+
+$('f-licencia').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const cliente = $('l-cliente').value.trim();
+  if (!cliente) { $('err-licencia').textContent = 'Escribe a nombre de quién es.'; return; }
+  const correo = $('l-correo').value.trim().toLowerCase();
+  if (correo && !/^\S+@\S+\.\S+$/.test(correo)) { $('err-licencia').textContent = 'Ese correo no se ve bien.'; return; }
+  const cuerpo = {
+    cliente, programa: $('l-programa').value, lugares: Number($('l-lugares').value) || 1,
+    cortesia: $('l-cortesia').checked,
+    ...(correo ? { correo } : {}),
+    ...($('l-hasta').value ? { paga_hasta: $('l-hasta').value } : {}),
+    ...($('l-notas').value.trim() ? { notas: $('l-notas').value.trim() } : {}),
+  };
+  const b = $('b-licencia'); b.disabled = true; b.textContent = 'Creando…';
+  $('err-licencia').textContent = '';
+  try {
+    const r = await pedir('/licencias', { method: 'POST', body: cuerpo });
+    $('f-licencia').reset();
+    aviso('l-aviso', `Lista. La clave de ${r.cliente} es ${r.clave}. Dásela tal cual: la teclea al instalar.`, 'bien');
+    await cargarLicencias();
+    await abrirLicencia(r.id);
+  } catch (e) {
+    $('err-licencia').textContent = e.message;
+  } finally { b.disabled = false; b.textContent = 'Crear licencia'; }
+};
+
+$('ld-pago').onclick = async () => {
+  if (!LIC) return;
+  const hasta = $('ld-hasta').value;
+  if (!hasta) { aviso('ld-aviso', 'Escoge hasta qué día está pagado.'); return; }
+  const b = $('ld-pago'); b.disabled = true;
+  try {
+    await pedir(`/licencias/${encodeURIComponent(LIC.id)}/pago`, { method: 'POST', body: { hasta } });
+    aviso('ld-aviso', `Pagada hasta ${diaLegible(hasta)}. La app lo sabe en su siguiente latido.`, 'bien');
+    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+  } catch (e) { aviso('ld-aviso', e.message); }
+  finally { b.disabled = false; }
+};
+
+$('ld-guardar-lugares').onclick = async () => {
+  if (!LIC) return;
+  const lugares = Number($('ld-lugares').value);
+  const b = $('ld-guardar-lugares'); b.disabled = true;
+  try {
+    await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { lugares } });
+    aviso('ld-aviso', `Ahora ${lugares} máquina${lugares === 1 ? '' : 's'} a la vez.`, 'bien');
+    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+  } catch (e) { aviso('ld-aviso', e.message); }
+  finally { b.disabled = false; }
+};
+
+$('ld-suspender').onclick = async () => {
+  if (!LIC) return;
+  const estado = LIC.estado === 'suspendida' ? 'activa' : 'suspendida';
+  const b = $('ld-suspender'); b.disabled = true;
+  try {
+    await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { estado } });
+    aviso('ld-aviso', estado === 'suspendida' ? 'Suspendida. En su siguiente latido la app pasa a modo lectura.' : 'Reanudada. En su siguiente latido la app vuelve a entrar.', 'bien');
+    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+  } catch (e) { aviso('ld-aviso', e.message); }
+  finally { b.disabled = false; }
+};
+
+// Borrar pide dos clics: el primero cambia el botón, el segundo borra.
+$('ld-borrar').onclick = async () => {
+  if (!LIC) return;
+  const b = $('ld-borrar');
+  if (!b.dataset.seguro) { b.dataset.seguro = '1'; b.textContent = '¿Seguro? Borrar'; return; }
+  b.disabled = true;
+  try {
+    await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'DELETE' });
+    LIC = null;
+    $('l-detalle').hidden = true;
+    aviso('l-aviso', 'Licencia borrada. Su clave ya no existe.', 'bien');
+    await cargarLicencias();
+  } catch (e) { aviso('ld-aviso', e.message); }
+  finally { b.disabled = false; b.textContent = 'Borrar'; delete b.dataset.seguro; }
+};
 
 /* ─────────────── arranque ───────────────
  * Si la cookie todavía vive, se entra directo. Si venció, se pide el correo

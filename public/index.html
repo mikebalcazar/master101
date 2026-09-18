@@ -19,6 +19,7 @@
     <button data-ir="empresas" class="activo">Empresas</button>
     <button data-ir="alta">Alta de empresa</button>
     <button data-ir="super">Superadmins</button>
+    <button data-ir="licencias">Licencias</button>
     <a href="/s101/admin/importar" id="liga-importar">Importar</a>
   </nav>
   <div class="quien" id="quien" hidden><span id="quien-n"></span><button id="salir">Salir</button></div>
@@ -204,6 +205,68 @@
     <thead><tr><th>Cuándo</th><th>Quién</th><th>Antes</th><th>Después</th></tr></thead>
     <tbody id="s-bitacora"></tbody>
   </table></div>
+</main>
+
+<!-- LICENCIAS (contrato 0.13.0) -->
+<main class="wrap" id="v-licencias" hidden>
+  <div class="cab">
+    <div><p class="eyebrow">Suite 101</p><h1>Licencias</h1><div class="sub" id="l-sub">Las suscripciones de draw101: quién tiene clave, hasta cuándo pagó y en cuántas máquinas está.</div></div>
+    <div class="acciones"><button class="btn suave" id="l-refrescar">↻ Actualizar</button></div>
+  </div>
+  <div class="aviso" id="l-aviso" hidden></div>
+  <div class="tabla"><table id="l-tabla">
+    <thead><tr><th>Cliente</th><th>Clave</th><th>Programa</th><th class="r">Máquinas</th><th>Pagada hasta</th><th>Estado</th><th></th></tr></thead>
+    <tbody id="l-filas"></tbody>
+  </table></div>
+  <p class="nota">Una clave sin fecha de pago y sin cortesía existe pero no entra: no hay periodo de prueba. «Máquinas» es usadas de lugares. Suspender corta en cuanto la app late (a más tardar en un día con internet; sin internet la app aguanta 14 días y luego abre en modo lectura).</p>
+
+  <h2 class="h2">Nueva licencia</h2>
+  <form class="forma" id="f-licencia" novalidate>
+    <div class="dos">
+      <label for="l-cliente">A nombre de<input id="l-cliente" autocomplete="off" placeholder="Carpintería Gómez" required></label>
+      <label for="l-correo">Correo <span class="opc">(opcional)</span><input id="l-correo" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false"></label>
+    </div>
+    <div class="dos">
+      <label for="l-programa">Programa<select id="l-programa"><option value="draw101" selected>draw101</option><option value="nest101">nest101</option><option value="shape101">shape101</option></select></label>
+      <label for="l-lugares">Máquinas a la vez<input id="l-lugares" type="number" min="1" max="100" value="1"></label>
+    </div>
+    <div class="dos">
+      <label for="l-hasta">Pagada hasta <span class="opc">(opcional)</span><input id="l-hasta" type="date"><span class="pista">Sin fecha, la clave existe pero no entra hasta que marques el pago.</span></label>
+      <label for="l-cortesia"><input type="checkbox" id="l-cortesia"> Cortesía: sin fecha de corte (para ti, o para regalar)</label>
+    </div>
+    <label for="l-notas">Notas <span class="opc">(opcional)</span><input id="l-notas" autocomplete="off" placeholder="cómo pagó, a quién se la diste…"></label>
+    <div class="err" id="err-licencia"></div>
+    <div class="acciones"><button class="btn" type="submit" id="b-licencia">Crear licencia</button></div>
+  </form>
+
+  <section id="l-detalle" hidden>
+    <h2 class="h2" id="ld-titulo">Licencia</h2>
+    <p class="mono" id="ld-clave"></p>
+    <p class="nota" id="ld-resumen"></p>
+    <div class="aviso" id="ld-aviso" hidden></div>
+    <div class="forma">
+      <div class="dos">
+        <label for="ld-hasta">Marcar pagada hasta<input id="ld-hasta" type="date"><span class="pista">El último día que ya está pagado. La app lo sabe en su siguiente latido.</span></label>
+        <label for="ld-lugares">Máquinas a la vez<input id="ld-lugares" type="number" min="1" max="100"></label>
+      </div>
+      <div class="acciones">
+        <button class="btn" type="button" id="ld-pago">Marcar pago</button>
+        <button class="btn suave" type="button" id="ld-guardar-lugares">Cambiar máquinas</button>
+        <button class="btn suave" type="button" id="ld-suspender">Suspender</button>
+        <button class="btn peligro chico" type="button" id="ld-borrar">Borrar</button>
+      </div>
+    </div>
+    <h2 class="h2">Máquinas</h2>
+    <div class="tabla"><table>
+      <thead><tr><th>Huella</th><th>Versión</th><th>Alta</th><th>Último latido</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="ld-activaciones"></tbody>
+    </table></div>
+    <h2 class="h2">Qué ha pasado</h2>
+    <div class="tabla"><table>
+      <thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Detalle</th></tr></thead>
+      <tbody id="ld-bitacora"></tbody>
+    </table></div>
+  </section>
 </main>
 
 <!-- CONFIRMAR QUITAR A ALGUIEN -->
