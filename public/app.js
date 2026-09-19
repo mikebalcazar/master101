@@ -306,11 +306,16 @@ async function entrar() {
     return;
   }
 
-  /* Entró con un código y no tiene contraseña: no tiene por dónde volver
-   * mañana, porque el código es de un solo uso y de diez minutos. Se le pide
-   * antes de enseñarle nada. Con Google NO se le pide: Google ya es una forma
-   * de entrar, y pedirle una contraseña a quien no la necesita es un estorbo. */
-  if (!YO.tiene_clave && YO.entro_con === 'codigo') {
+  /* Entró con un código y no tiene contraseña NI cuenta de Google ligada: no
+   * tiene por dónde volver mañana, porque el código es de un solo uso y de
+   * diez minutos. Se le pide antes de enseñarle nada.
+   *
+   * Con Google no se le pide, ni al entrar con él ni después: Google ya es
+   * una forma de entrar. `tiene_google` llegó con el contrato 0.17.2, porque
+   * sin él a quien tenía Google ligado se le pedía una contraseña cada vez
+   * que entraba con un código, sin necesitarla (le pasó al dueño de la suite
+   * el 19-sep). Una API vieja no lo manda: entonces se comporta como antes. */
+  if (!YO.tiene_clave && !YO.tiene_google && YO.entro_con === 'codigo') {
     mostrar('v-nueva');
     pintarNueva(true);
     return;
