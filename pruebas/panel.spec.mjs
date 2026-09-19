@@ -523,6 +523,16 @@ async function mudanza(navegador) {
   const resultado = await pagina.textContent('#g-mudanza-resultado');
   rev(/base vieja de quell101/.test(err) || /Se traerían/.test(resultado), 'contar en seco contesta con palabras (aquí no hay base vieja ligada, y lo dice)', (err || resultado).trim().slice(0, 90));
   if (obra.cuerpo?.id) await json(`${BASE}/s101/orgs/${ORG_MUD}/quell/projects/${obra.cuerpo.id}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper, 'X-App': 'quell101' } });
+  // roster101 (0.17.0): el mismo bloque para los expedientes.
+  await pagina.waitForFunction(() => !/Cargando/.test(document.getElementById('g-roster').textContent), null, { timeout: 15000 });
+  const roster = await pagina.textContent('#g-roster');
+  rev(/Todavía no tiene nada|Tiene \d+ expedientes/.test(roster), 'el bloque de roster101 cuenta lo que hay en la empresa', roster.trim());
+  rev(await pagina.isDisabled('#g-mudanza-roster-traer'), '«Traer de verdad» de roster101 está apagado hasta contar');
+  await pagina.click('#g-mudanza-roster-contar');
+  await pagina.waitForFunction(() => document.getElementById('err-mudanza-roster').textContent.length > 0 || !document.getElementById('g-mudanza-roster-resultado').hidden, null, { timeout: 20000 });
+  const errR = await pagina.textContent('#err-mudanza-roster');
+  const resultadoR = await pagina.textContent('#g-mudanza-roster-resultado');
+  rev(/base vieja de roster101/.test(errR) || /Se traerían/.test(resultadoR), 'contar en seco la mudanza de roster101 contesta con palabras', (errR || resultadoR).trim().slice(0, 90));
   const sobra = await pagina.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   rev(sobra <= 0, 'sin scroll horizontal', `sobran ${sobra} px`);
   rev(errores.length === 0, 'cero errores de JavaScript', errores.join(' | '));

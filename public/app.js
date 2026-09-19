@@ -532,8 +532,12 @@ async function irAGente(id) {
   $('g-mudanza-resultado').hidden = true;
   $('g-mudanza-traer').disabled = true;
   $('err-mudanza').textContent = '';
+  $('g-roster').textContent = 'Cargando…';
+  $('g-mudanza-roster-resultado').hidden = true;
+  $('g-mudanza-roster-traer').disabled = true;
+  $('err-mudanza-roster').textContent = '';
   mostrar('v-gente');
-  await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id), cargarQuell(ORG.id)]);
+  await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id), cargarQuell(ORG.id), cargarRoster(ORG.id)]);
 }
 
 /* ─────────────── quell101 dentro de la empresa (0.16.0) ─────────────── */
@@ -580,6 +584,54 @@ $('g-mudanza-contar').onclick = () => mudar('seco');
 $('g-mudanza-traer').onclick = () => {
   if (!confirm(`¿Traer de verdad la bitácora de obra a ${ORG.nombre}? Lo que ya esté con la misma llave se actualiza; nada se borra.`)) return;
   mudar('escribir');
+};
+
+/* ─────────────── roster101 dentro de la empresa (0.17.0) ─────────────── */
+
+const NOMBRES_ROSTER = { roster_trabajadores: 'expedientes', roster_documentos: 'documentos', roster_consentimientos: 'avisos aceptados', roster_papelera: 'en la papelera', roster_administradores: 'cuentas del panel', roster_bitacora: 'renglones de bitácora' };
+function rosterLegible(filas) {
+  const partes = Object.entries(NOMBRES_ROSTER).map(([k, n]) => `${filas[k] ?? 0} ${n}`);
+  return (filas.roster_trabajadores ? 'Tiene ' : 'Todavía no tiene nada: ') + partes.join(', ') + '.';
+}
+async function cargarRoster(id) {
+  try {
+    const d = await pedir(`/admin/orgs/${encodeURIComponent(id)}/roster`);
+    $('g-roster').textContent = rosterLegible(d.filas || {});
+  } catch (e) { $('g-roster').textContent = `No se pudo leer lo de roster101: ${e.message}`; }
+}
+function mudanzaRosterLegible(r) {
+  const l = (k) => `${r.leidas?.[k] ?? 0}`;
+  const lineas = [
+    `${r.modo === 'seco' ? 'Se traerían' : 'Se trajeron'}: ${l('roster_trabajadores')} expedientes, ${l('roster_documentos')} documentos, ${l('roster_consentimientos')} avisos aceptados, ${l('roster_papelera')} en la papelera, ${l('roster_bitacora')} renglones de bitácora, ${l('roster_administradores')} cuentas del panel.`,
+    r.cuentas_sin_suite?.length
+      ? `Cuentas del panel sin cuenta en la suite (entran cuando la tengan): ${r.cuentas_sin_suite.join(', ')}.`
+      : 'Todas las cuentas del panel tienen cuenta en la suite.',
+    r.modo === 'seco'
+      ? `Archivos que se copiarían: ${r.archivos?.total ?? 0}. En seco no se escribe nada.`
+      : `Archivos: ${r.archivos?.copiados ?? 0} copiados, ${r.archivos?.ya_estaban ?? 0} ya estaban${r.archivos?.fallos?.length ? `, ${r.archivos.fallos.length} fallaron: ${r.archivos.fallos.map((f) => f.llave).join(', ')}` : ''}.`,
+    `Ahora la empresa tiene ${r.despues?.roster_trabajadores ?? 0} expedientes y ${r.despues?.roster_documentos ?? 0} documentos en su base${r.modo === 'seco' ? ' (tendría, si se trae)' : ''}.`,
+  ];
+  if (r.documentos_sin_trabajador) lineas.push(`Ojo: ${r.documentos_sin_trabajador} documentos sin expediente; no se traen.`);
+  return lineas.join('\n');
+}
+async function mudarRoster(modo) {
+  const contar = $('g-mudanza-roster-contar'), traer = $('g-mudanza-roster-traer');
+  contar.disabled = true; traer.disabled = true; $('err-mudanza-roster').textContent = '';
+  try {
+    const r = await pedir('/admin/mudar-roster', { method: 'POST', body: { org: ORG.id, modo } });
+    const salida = $('g-mudanza-roster-resultado');
+    salida.textContent = mudanzaRosterLegible(r);
+    salida.hidden = false;
+    if (modo === 'seco') traer.disabled = false;
+    else { aviso('g-aviso', `Los expedientes de ${ORG.nombre} ya viven en su base de la suite.`, 'bien'); await cargarRoster(ORG.id); }
+  } catch (e) {
+    $('err-mudanza-roster').textContent = e.error === 'sin_fuente' ? 'Esta API no tiene ligada la base vieja de roster101 (sólo producción la tiene).' : e.message;
+  } finally { contar.disabled = false; }
+}
+$('g-mudanza-roster-contar').onclick = () => mudarRoster('seco');
+$('g-mudanza-roster-traer').onclick = () => {
+  if (!confirm(`¿Traer de verdad los expedientes de trabajadores a ${ORG.nombre}? Lo que ya esté con la misma llave se actualiza; nada se borra.`)) return;
+  mudarRoster('escribir');
 };
 
 /* ─────────────── plan y cobro, datos de la empresa (0.14.0) ─────────────── */
