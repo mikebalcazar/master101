@@ -612,6 +612,14 @@ function mudanzaRosterLegible(r) {
     `Ahora la empresa tiene ${r.despues?.roster_trabajadores ?? 0} expedientes y ${r.despues?.roster_documentos ?? 0} documentos en su base${r.modo === 'seco' ? ' (tendría, si se trae)' : ''}.`,
   ];
   if (r.documentos_sin_trabajador) lineas.push(`Ojo: ${r.documentos_sin_trabajador} documentos sin expediente; no se traen.`);
+  // Desde el contrato 0.17.1: quien entró al portal antes de la mudanza abrió
+  // un expediente en blanco con su correo. Si no tiene nada escrito se retira
+  // y entra el de verdad; se dice, porque es algo que pasó sin que nadie lo
+  // pidiera.
+  const blancos = r.expedientes_en_blanco_retirados ?? [];
+  if (blancos.length) {
+    lineas.push(`${r.modo === 'seco' ? 'Se retirarían' : 'Se retiraron'} ${blancos.length} expediente(s) en blanco que alguien había abierto aquí con el mismo correo (${blancos.join(', ')}); entra el de la base vieja, con sus documentos.`);
+  }
   return lineas.join('\n');
 }
 async function mudarRoster(modo) {
@@ -625,7 +633,18 @@ async function mudarRoster(modo) {
     if (modo === 'seco') traer.disabled = false;
     else { aviso('g-aviso', `Los expedientes de ${ORG.nombre} ya viven en su base de la suite.`, 'bien'); await cargarRoster(ORG.id); }
   } catch (e) {
-    $('err-mudanza-roster').textContent = e.error === 'sin_fuente' ? 'Esta API no tiene ligada la base vieja de roster101 (sólo producción la tiene).' : e.message;
+    /* 409 `expedientes_encimados`: alguien ya escribió datos aquí con un
+     * correo que la base vieja también trae. No se escribió nada, y decirlo
+     * con los correos por nombre es lo único que sirve para resolverlo. */
+    if (e.error === 'expedientes_encimados') {
+      const choques = (e.detalle?.conflictos ?? []).map((x) => `${x.email} (${x.porque})`);
+      $('err-mudanza-roster').textContent =
+        `No se trajo nada, a propósito: ${choques.length} correo(s) ya tienen aquí un expediente con datos, distinto del que trae la base vieja: ${choques.join('; ')}. `
+        + 'Hay que decidir uno por uno cuál se queda antes de volver a intentar.';
+      $('g-mudanza-roster-resultado').hidden = true;
+    } else {
+      $('err-mudanza-roster').textContent = e.error === 'sin_fuente' ? 'Esta API no tiene ligada la base vieja de roster101 (sólo producción la tiene).' : e.message;
+    }
   } finally { contar.disabled = false; }
 }
 $('g-mudanza-roster-contar').onclick = () => mudarRoster('seco');
