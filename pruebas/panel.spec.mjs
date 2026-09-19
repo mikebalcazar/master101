@@ -406,13 +406,14 @@ async function escritorio(navegador) {
   await ctx.close();
 }
 
-/* ─────────────── licencias (contrato 0.13.0) ───────────────
- * Mike crea una cortesía desde la pantalla, la app la activa (aquí, por la
- * API, como lo hará draw101), el detalle enseña la máquina, se libera y se
- * borra. Lo que se crea se borra aquí mismo; el `finally` de abajo barre lo
- * que quede. */
+/* ─────────────── licencias (0.13.0; tipo y perpetua desde 0.19.0) ───────────
+ * Mike crea una perpetua de App Store desde la pantalla, la app la activa
+ * (aquí, por la API, como lo hará draw101), el filtro por tipo la encuentra y
+ * la esconde, el detalle enseña la máquina, se libera y se borra. Lo que se
+ * crea se borra aquí mismo; el `finally` de abajo barre lo que quede. */
 
 const LIC_CLIENTE = `Humo licencias ${ORG}`;
+const LIC_CORREO = `humo-lic-${ORG}@ejemplo.mx`.toLowerCase();
 
 async function licencias(navegador) {
   console.log(`\n== licencias (1440 × 900) ==`);
@@ -425,18 +426,45 @@ async function licencias(navegador) {
   rev(true, 'el menú lleva a Licencias y la lista carga');
 
   await pagina.fill('#l-cliente', LIC_CLIENTE);
-  await pagina.check('#l-cortesia');
+  await pagina.fill('#l-correo', LIC_CORREO);
+  await pagina.selectOption('#l-programa', 'nest101');
+  await pagina.selectOption('#l-tipo', 'appstore');
+  await pagina.check('#l-perpetua');
   await pagina.fill('#l-notas', 'la borra la propia prueba');
   await pagina.click('#b-licencia');
   await pagina.waitForFunction(() => /T101-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}/.test(document.getElementById('l-aviso').textContent), null, { timeout: 20000 });
   const clave = (await pagina.textContent('#l-aviso')).match(/T101-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}/)[0];
-  rev(true, 'se crea una cortesía y la pantalla dice la clave', clave);
+  rev(true, 'se crea una perpetua de App Store y la pantalla dice la clave', clave);
   await pagina.waitForSelector('#l-detalle:not([hidden])', { timeout: 10000 });
   rev((await pagina.textContent('#ld-clave')).trim() === clave, 'el detalle se abre solo con esa clave');
-  const fila = pagina.locator(`#l-filas tr:has(td.mono:text-is("${clave}"))`);
+  const fila = pagina.locator(`#l-filas tr:has(.mono:text-is("${clave}"))`);
   rev((await fila.count()) === 1, 'la lista tiene su fila');
-  rev(/cortesía/.test(await fila.textContent()), 'y dice que es cortesía');
+  const texto = await fila.textContent();
+  rev(/App Store/.test(texto), 'la fila dice de qué tipo es');
+  rev(/No vence/.test(texto), 'y que no vence, que es cosa aparte del tipo');
+  rev(texto.includes(LIC_CORREO), 'y trae el correo, que es por donde Mike las busca');
   const id = await fila.getAttribute('data-lic');
+
+  /* El filtro por tipo: la de App Store aparece con su tipo y desaparece con
+   * otro. Esto es justo lo que se perdería si «perpetua» fuera un tipo más:
+   * una perpetua de App Store tiene que seguir contando como de App Store. */
+  await pagina.selectOption('#l-f-tipo', 'appstore');
+  await pagina.waitForFunction((i) => !!document.querySelector(`#l-filas tr[data-lic="${i}"]`), id, { timeout: 15000 });
+  rev(true, 'filtrando por App Store, la perpetua sigue saliendo');
+  await pagina.selectOption('#l-f-tipo', 'cortesia');
+  await pagina.waitForFunction((i) => !document.querySelector(`#l-filas tr[data-lic="${i}"]`), id, { timeout: 15000 });
+  rev(true, 'y filtrando por Cortesía ya no');
+  await pagina.selectOption('#l-f-tipo', '');
+  await pagina.waitForFunction((i) => !!document.querySelector(`#l-filas tr[data-lic="${i}"]`), id, { timeout: 15000 });
+  rev(/\(\d+\)/.test(await pagina.textContent('#l-f-tipo')), 'el filtro dice cuántas hay de cada tipo');
+
+  await pagina.fill('#l-f-correo', LIC_CORREO);
+  await pagina.press('#l-f-correo', 'Enter');
+  await pagina.waitForFunction((i) => document.querySelectorAll('#l-filas tr[data-lic]').length === 1 && !!document.querySelector(`#l-filas tr[data-lic="${i}"]`), id, { timeout: 15000 });
+  rev(true, 'buscar por correo deja sólo la suya');
+  await pagina.fill('#l-f-correo', '');
+  await pagina.press('#l-f-correo', 'Enter');
+  await pagina.waitForFunction((i) => !!document.querySelector(`#l-filas tr[data-lic="${i}"]`), id, { timeout: 15000 });
 
   // La app activa, sin sesión: lo mismo que hará draw101 al instalar.
   const huella = `panel-${ORG}-0123456789abcdef`.replace(/[^A-Za-z0-9_-]/g, '-');
