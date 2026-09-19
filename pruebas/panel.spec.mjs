@@ -126,6 +126,27 @@ async function entrarEnPantalla(pagina, correo) {
   await pagina.fill('#codigo', codigo);
   await pagina.click('#b-codigo');
 
+  /* El código vive por correo y el último pedido pisa al anterior. Dos apps
+   * de la suite publicándose a la vez recorren staging con LA MISMA cuenta de
+   * superadmin, así que una le puede tumbar el código a la otra y aquí se ve
+   * como una pantalla que no avanza (pasó el 19-sep: master101 y workshop101
+   * se publicaron en el mismo minuto). Si el código no sirvió, se pide otro y
+   * se intenta una vez más, en vez de dar por rota la pantalla. */
+  const rebotado = await pagina.waitForFunction(
+    () => !document.getElementById('v-codigo').hidden && document.getElementById('err-codigo').textContent.trim().length > 0,
+    null, { timeout: 8000 },
+  ).then(() => true, () => false);
+  if (rebotado) {
+    console.log(`  (el código no sirvió: ${await pagina.textContent('#err-codigo')} — se pide otro)`);
+    await dormir(47000);
+    const espera = pagina.waitForResponse((r) => r.url().endsWith('/s101/auth/codigo'), { timeout: 20000 });
+    await pagina.click('#reenviar');
+    const otro = (await (await espera).json().catch(() => null))?.data?.codigo_prueba;
+    if (!otro) throw new Error('la interfaz no consiguió un segundo código de prueba');
+    await pagina.fill('#codigo', otro);
+    await pagina.click('#b-codigo');
+  }
+
   /* Y aquí caben las dos salidas, según si esa cuenta ya tenía contraseña:
    *   sin contraseña → la pantalla la pide antes de dejar pasar
    *   con contraseña → pasa directo
