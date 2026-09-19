@@ -167,13 +167,18 @@ jobs:
                   if not linea: continue
                   try: e = json.loads(linea)
                   except Exception: continue
+                  # Una línea que no es un objeto —wrangler manda alguna
+                  # suelta— tiraba este lector con AttributeError y dejaba el
+                  # despliegue en rojo por el diagnóstico, no por la falla que
+                  # venía a explicar (pasó el 19-sep).
+                  if not isinstance(e, dict): continue
                   vistos += 1
-                  ev = e.get('event') or {}
+                  ev = e.get('event') if isinstance(e.get('event'), dict) else {}
                   print(f"-- {ev.get('request',{}).get('method','?')} {ev.get('request',{}).get('url','?')}  →  {e.get('outcome')}")
-                  for x in e.get('exceptions', []):
-                      print('   EXCEPCION:', x.get('name'), x.get('message'))
-                  for l in e.get('logs', []):
-                      print('   log', l.get('level'), ' '.join(str(m) for m in l.get('message', []))[:1500])
+                  for x in e.get('exceptions', []) or []:
+                      if isinstance(x, dict): print('   EXCEPCION:', x.get('name'), x.get('message'))
+                  for l in e.get('logs', []) or []:
+                      if isinstance(l, dict): print('   log', l.get('level'), ' '.join(str(m) for m in l.get('message', []) or [])[:1500])
           except FileNotFoundError:
               pass
           if not vistos:
