@@ -491,6 +491,49 @@ async function cobro(navegador) {
   await ctx.close();
 }
 
+/* La bitácora de obra dentro de la empresa (0.16.0): el bloque cuenta lo que
+ * hay, y la mudanza en seco contra una API sin la base vieja ligada (staging)
+ * dice con palabras por qué no, sin tronar. */
+const ORG_MUD = `mud-${ORG}`.slice(0, 40);
+async function mudanza(navegador) {
+  console.log(`\n== bitácora de obra y mudanza (1440 × 900) ==`);
+  const { ctx, pagina, errores } = await contexto(navegador, 1440, 900);
+  const creada = await json(`${BASE}/s101/admin/orgs`, { method: 'POST', cabeceras: { Cookie: galletaSuper }, body: { id: ORG_MUD, nombre: 'Prueba Mudanza' } });
+  rev(creada.estado === 201, 'la API crea una empresa para la prueba', `${creada.estado}`);
+  await entrarEnPantalla(pagina, SUPER);
+  await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 20000 });
+  await pagina.waitForSelector(`#e-filas tr[data-org="${ORG_MUD}"]`, { timeout: 15000 });
+  await pagina.click(`#e-filas [data-gente="${ORG_MUD}"]`);
+  await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 10000 });
+  await pagina.waitForFunction(() => !/Cargando/.test(document.getElementById('g-quell').textContent), null, { timeout: 15000 });
+  const quell = await pagina.textContent('#g-quell');
+  rev(/Todavía no tiene nada|Tiene \d+ obras/.test(quell), 'el bloque de quell101 cuenta lo que hay en la empresa', quell.trim());
+  // Una obra por la API, y el conteo la refleja al volver a abrir la empresa.
+  const obra = await json(`${BASE}/s101/orgs/${ORG_MUD}/quell/projects`, { method: 'POST', cabeceras: { Cookie: galletaSuper, 'X-App': 'quell101' }, body: { name: 'Obra desde master101', client: 'Cliente inventado' } });
+  rev(obra.estado === 200 && !!obra.cuerpo?.id, 'el dueño de la suite levanta una obra en quell101 de la empresa por la API', `${obra.estado}`);
+  await pagina.click('#menu [data-ir="empresas"]');
+  await pagina.waitForSelector(`#e-filas [data-gente="${ORG_MUD}"]`, { timeout: 15000 });
+  await pagina.click(`#e-filas [data-gente="${ORG_MUD}"]`);
+  await pagina.waitForFunction(() => /Tiene 1 obras/.test(document.getElementById('g-quell').textContent), null, { timeout: 15000 });
+  rev(true, 'y master101 la cuenta: «Tiene 1 obras…»');
+  rev(await pagina.isDisabled('#g-mudanza-traer'), '«Traer de verdad» está apagado hasta contar');
+  await pagina.click('#g-mudanza-contar');
+  await pagina.waitForFunction(() => document.getElementById('err-mudanza').textContent.length > 0 || !document.getElementById('g-mudanza-resultado').hidden, null, { timeout: 20000 });
+  const err = await pagina.textContent('#err-mudanza');
+  const resultado = await pagina.textContent('#g-mudanza-resultado');
+  rev(/base vieja de quell101/.test(err) || /Se traerían/.test(resultado), 'contar en seco contesta con palabras (aquí no hay base vieja ligada, y lo dice)', (err || resultado).trim().slice(0, 90));
+  if (obra.cuerpo?.id) await json(`${BASE}/s101/orgs/${ORG_MUD}/quell/projects/${obra.cuerpo.id}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper, 'X-App': 'quell101' } });
+  const sobra = await pagina.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  rev(sobra <= 0, 'sin scroll horizontal', `sobran ${sobra} px`);
+  rev(errores.length === 0, 'cero errores de JavaScript', errores.join(' | '));
+  await ctx.close();
+}
+
+async function barrerMudanza() {
+  const r = await json(`${BASE}/s101/admin/orgs/${ORG_MUD}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } }).catch(() => ({ estado: 0 }));
+  if (r.estado !== 200 && r.estado !== 404) console.log(`  AVISO la empresa ${ORG_MUD} NO se pudo borrar (${r.estado})`);
+}
+
 async function barrerCobro() {
   await json(`${BASE}/s101/admin/orgs/${ORG_COBRO}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } }).catch(() => null);
 }
@@ -587,6 +630,7 @@ try {
   if (corre('google')) await google(navegador);
   if (corre('licencias')) await licencias(navegador);
   if (corre('cobro')) await cobro(navegador);
+  if (corre('mudanza')) await mudanza(navegador);
   if (corre('yoLento')) await yoLento(navegador);
 } catch (e) {
   fallas++;
@@ -595,6 +639,7 @@ try {
   await navegador.close();
   await barrerLicencias();
   await barrerCobro();
+  await barrerMudanza();
   // Lo que se creó, se borra: DELETE /admin/orgs/:o sólo existe fuera de producción.
   const borrada = await json(`${BASE}/s101/admin/orgs/${ORG}`, { method: 'DELETE', cabeceras: { Cookie: galletaSuper } }).catch(() => ({ estado: 0 }));
   console.log(`\n  ${borrada.estado === 200 ? 'ok   ' : 'AVISO'} la org de prueba ${ORG} ${borrada.estado === 200 ? 'se borró' : 'NO se pudo borrar (' + borrada.estado + ')'}`);

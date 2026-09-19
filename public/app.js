@@ -528,9 +528,59 @@ async function irAGente(id) {
   $('err-cobro').textContent = '';
   $('err-datos').textContent = '';
   pintarCobro();
+  $('g-quell').textContent = 'Cargando…';
+  $('g-mudanza-resultado').hidden = true;
+  $('g-mudanza-traer').disabled = true;
+  $('err-mudanza').textContent = '';
   mostrar('v-gente');
-  await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id)]);
+  await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id), cargarQuell(ORG.id)]);
 }
+
+/* ─────────────── quell101 dentro de la empresa (0.16.0) ─────────────── */
+
+const NOMBRES_QUELL = { quell_projects: 'obras', quell_plans: 'planos', quell_elements: 'ítems', quell_log_entries: 'renglones de bitácora', quell_punch_items: 'pendientes', quell_photos: 'fotos', quell_users: 'personas', quell_dudas: 'dudas' };
+function quellLegible(filas) {
+  const partes = Object.entries(NOMBRES_QUELL).map(([k, n]) => `${filas[k] ?? 0} ${n}`);
+  return (filas.quell_projects ? 'Tiene ' : 'Todavía no tiene nada: ') + partes.join(', ') + '.';
+}
+async function cargarQuell(id) {
+  try {
+    const d = await pedir(`/admin/orgs/${encodeURIComponent(id)}/quell`);
+    $('g-quell').textContent = quellLegible(d.filas || {});
+  } catch (e) { $('g-quell').textContent = `No se pudo leer lo de quell101: ${e.message}`; }
+}
+function mudanzaLegible(r) {
+  const l = (k) => `${r.leidas?.[k] ?? 0}`;
+  const lineas = [
+    `${r.modo === 'seco' ? 'Se traerían' : 'Se trajeron'}: ${l('quell_projects')} obras, ${l('quell_plans')} planos, ${l('quell_elements')} ítems, ${l('quell_log_entries')} renglones de bitácora, ${l('quell_punch_items')} pendientes, ${l('quell_photos')} fotos, ${l('quell_dudas')} dudas, ${l('quell_users')} personas.`,
+    `Personas con cuenta en la suite: ${r.personas_con_cuenta}.${r.personas_sin_cuenta?.length ? ` Sin cuenta (entran cuando la tengan): ${r.personas_sin_cuenta.join(', ')}.` : ''}`,
+    r.modo === 'seco'
+      ? `Archivos que se copiarían: ${r.archivos?.total ?? 0}. En seco no se escribe nada.`
+      : `Archivos: ${r.archivos?.copiados ?? 0} copiados, ${r.archivos?.ya_estaban ?? 0} ya estaban${r.archivos?.fallos?.length ? `, ${r.archivos.fallos.length} fallaron: ${r.archivos.fallos.map((f) => f.llave).join(', ')}` : ''}.`,
+    `Ahora la empresa tiene ${r.despues?.quell_projects ?? 0} obras y ${r.despues?.quell_elements ?? 0} ítems en su base${r.modo === 'seco' ? ' (tendría, si se trae)' : ''}.`,
+  ];
+  if (r.items_sin_obra) lineas.push(`Ojo: ${r.items_sin_obra} ítems sin obra; no se traen hasta arreglarlos.`);
+  return lineas.join('\n');
+}
+async function mudar(modo) {
+  const contar = $('g-mudanza-contar'), traer = $('g-mudanza-traer');
+  contar.disabled = true; traer.disabled = true; $('err-mudanza').textContent = '';
+  try {
+    const r = await pedir('/admin/mudar-quell', { method: 'POST', body: { org: ORG.id, modo } });
+    const salida = $('g-mudanza-resultado');
+    salida.textContent = mudanzaLegible(r);
+    salida.hidden = false;
+    if (modo === 'seco') traer.disabled = false;
+    else { aviso('g-aviso', `La bitácora de obra de ${ORG.nombre} ya vive en su base de la suite.`, 'bien'); await cargarQuell(ORG.id); }
+  } catch (e) {
+    $('err-mudanza').textContent = e.error === 'sin_fuente' ? 'Esta API no tiene ligada la base vieja de quell101 (sólo producción la tiene).' : e.message;
+  } finally { contar.disabled = false; }
+}
+$('g-mudanza-contar').onclick = () => mudar('seco');
+$('g-mudanza-traer').onclick = () => {
+  if (!confirm(`¿Traer de verdad la bitácora de obra a ${ORG.nombre}? Lo que ya esté con la misma llave se actualiza; nada se borra.`)) return;
+  mudar('escribir');
+};
 
 /* ─────────────── plan y cobro, datos de la empresa (0.14.0) ─────────────── */
 
