@@ -192,8 +192,22 @@ async function recorrido(navegador) {
   rev(true, 'con el código bueno entra a Empresas');
   rev((await pagina.textContent('#quien-n')).trim() === SUPER, 'arriba dice quién entró', SUPER);
   await pagina.waitForFunction(() => document.querySelectorAll('#e-filas tr[data-org]').length > 0, null, { timeout: 15000 });
-  const enApi = (await json(`${BASE}/s101/admin/orgs`, { cabeceras: { Cookie: galletaSuper } })).cuerpo?.data?.filas ?? [];
-  const pintadas = await pagina.locator('#e-filas tr[data-org]').count();
+  /* La tabla y la API se leen en dos momentos distintos, y en staging puede
+   * haber OTRA corrida creando y borrando empresas de prueba al mismo tiempo
+   * (dos apps de la suite publicándose a la vez). Por eso se compara hasta
+   * tres veces, refrescando la tabla: lo que se quiere probar es que la
+   * pantalla pinta una fila por empresa, no adivinar en qué instante se miró.
+   * Pasó el 19-sep: 3 de 4, con master101 y workshop101 publicándose juntos. */
+  let pintadas = 0; let enApi = [];
+  for (let intento = 1; intento <= 3; intento++) {
+    enApi = (await json(`${BASE}/s101/admin/orgs`, { cabeceras: { Cookie: galletaSuper } })).cuerpo?.data?.filas ?? [];
+    pintadas = await pagina.locator('#e-filas tr[data-org]').count();
+    if (pintadas === enApi.length) break;
+    console.log(`  (la tabla decía ${pintadas} y la API ${enApi.length}: otra corrida está tocando staging; se vuelve a mirar)`);
+    await pagina.click('#menu [data-ir="empresas"]');
+    await pagina.waitForFunction((n) => document.querySelectorAll('#e-filas tr[data-org]').length !== n, pintadas, { timeout: 8000 }).catch(() => {});
+    await dormir(2000);
+  }
   rev(pintadas === enApi.length, 'hay una fila por empresa de GET /admin/orgs', `${pintadas} de ${enApi.length}`);
   rev(await pagina.locator('#e-filas tr[data-org="demo"]').count() === 1, 'la org demo está en la tabla');
   await sinScroll(pagina, 'la tabla de empresas');
