@@ -534,13 +534,7 @@ async function irAGente(id) {
   $('err-datos').textContent = '';
   pintarCobro();
   $('g-quell').textContent = 'Cargando…';
-  $('g-mudanza-resultado').hidden = true;
-  $('g-mudanza-traer').disabled = true;
-  $('err-mudanza').textContent = '';
   $('g-roster').textContent = 'Cargando…';
-  $('g-mudanza-roster-resultado').hidden = true;
-  $('g-mudanza-roster-traer').disabled = true;
-  $('err-mudanza-roster').textContent = '';
   mostrar('v-gente');
   await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id), cargarQuell(ORG.id), cargarRoster(ORG.id)]);
 }
@@ -558,39 +552,6 @@ async function cargarQuell(id) {
     $('g-quell').textContent = quellLegible(d.filas || {});
   } catch (e) { $('g-quell').textContent = `No se pudo leer lo de quell101: ${e.message}`; }
 }
-function mudanzaLegible(r) {
-  const l = (k) => `${r.leidas?.[k] ?? 0}`;
-  const lineas = [
-    `${r.modo === 'seco' ? 'Se traerían' : 'Se trajeron'}: ${l('quell_projects')} obras, ${l('quell_plans')} planos, ${l('quell_elements')} ítems, ${l('quell_log_entries')} renglones de bitácora, ${l('quell_punch_items')} pendientes, ${l('quell_photos')} fotos, ${l('quell_dudas')} dudas, ${l('quell_users')} personas.`,
-    `Personas con cuenta en la suite: ${r.personas_con_cuenta}.${r.personas_sin_cuenta?.length ? ` Sin cuenta (entran cuando la tengan): ${r.personas_sin_cuenta.join(', ')}.` : ''}`,
-    r.modo === 'seco'
-      ? `Archivos que se copiarían: ${r.archivos?.total ?? 0}. En seco no se escribe nada.`
-      : `Archivos: ${r.archivos?.copiados ?? 0} copiados, ${r.archivos?.ya_estaban ?? 0} ya estaban${r.archivos?.fallos?.length ? `, ${r.archivos.fallos.length} fallaron: ${r.archivos.fallos.map((f) => f.llave).join(', ')}` : ''}.`,
-    `Ahora la empresa tiene ${r.despues?.quell_projects ?? 0} obras y ${r.despues?.quell_elements ?? 0} ítems en su base${r.modo === 'seco' ? ' (tendría, si se trae)' : ''}.`,
-  ];
-  if (r.items_sin_obra) lineas.push(`Ojo: ${r.items_sin_obra} ítems sin obra; no se traen hasta arreglarlos.`);
-  return lineas.join('\n');
-}
-async function mudar(modo) {
-  const contar = $('g-mudanza-contar'), traer = $('g-mudanza-traer');
-  contar.disabled = true; traer.disabled = true; $('err-mudanza').textContent = '';
-  try {
-    const r = await pedir('/admin/mudar-quell', { method: 'POST', body: { org: ORG.id, modo } });
-    const salida = $('g-mudanza-resultado');
-    salida.textContent = mudanzaLegible(r);
-    salida.hidden = false;
-    if (modo === 'seco') traer.disabled = false;
-    else { aviso('g-aviso', `La bitácora de obra de ${ORG.nombre} ya vive en su base de la suite.`, 'bien'); await cargarQuell(ORG.id); }
-  } catch (e) {
-    $('err-mudanza').textContent = e.error === 'sin_fuente' ? 'Esta API no tiene ligada la base vieja de quell101 (sólo producción la tiene).' : e.message;
-  } finally { contar.disabled = false; }
-}
-$('g-mudanza-contar').onclick = () => mudar('seco');
-$('g-mudanza-traer').onclick = () => {
-  if (!confirm(`¿Traer de verdad la bitácora de obra a ${ORG.nombre}? Lo que ya esté con la misma llave se actualiza; nada se borra.`)) return;
-  mudar('escribir');
-};
-
 /* ─────────────── roster101 dentro de la empresa (0.17.0) ─────────────── */
 
 const NOMBRES_ROSTER = { roster_trabajadores: 'expedientes', roster_documentos: 'documentos', roster_consentimientos: 'avisos aceptados', roster_papelera: 'en la papelera', roster_administradores: 'cuentas del panel', roster_bitacora: 'renglones de bitácora' };
@@ -604,60 +565,6 @@ async function cargarRoster(id) {
     $('g-roster').textContent = rosterLegible(d.filas || {});
   } catch (e) { $('g-roster').textContent = `No se pudo leer lo de roster101: ${e.message}`; }
 }
-function mudanzaRosterLegible(r) {
-  const l = (k) => `${r.leidas?.[k] ?? 0}`;
-  const lineas = [
-    `${r.modo === 'seco' ? 'Se traerían' : 'Se trajeron'}: ${l('roster_trabajadores')} expedientes, ${l('roster_documentos')} documentos, ${l('roster_consentimientos')} avisos aceptados, ${l('roster_papelera')} en la papelera, ${l('roster_bitacora')} renglones de bitácora, ${l('roster_administradores')} cuentas del panel.`,
-    r.cuentas_sin_suite?.length
-      ? `Cuentas del panel sin cuenta en la suite (entran cuando la tengan): ${r.cuentas_sin_suite.join(', ')}.`
-      : 'Todas las cuentas del panel tienen cuenta en la suite.',
-    r.modo === 'seco'
-      ? `Archivos que se copiarían: ${r.archivos?.total ?? 0}. En seco no se escribe nada.`
-      : `Archivos: ${r.archivos?.copiados ?? 0} copiados, ${r.archivos?.ya_estaban ?? 0} ya estaban${r.archivos?.fallos?.length ? `, ${r.archivos.fallos.length} fallaron: ${r.archivos.fallos.map((f) => f.llave).join(', ')}` : ''}.`,
-    `Ahora la empresa tiene ${r.despues?.roster_trabajadores ?? 0} expedientes y ${r.despues?.roster_documentos ?? 0} documentos en su base${r.modo === 'seco' ? ' (tendría, si se trae)' : ''}.`,
-  ];
-  if (r.documentos_sin_trabajador) lineas.push(`Ojo: ${r.documentos_sin_trabajador} documentos sin expediente; no se traen.`);
-  // Desde el contrato 0.17.1: quien entró al portal antes de la mudanza abrió
-  // un expediente en blanco con su correo. Si no tiene nada escrito se retira
-  // y entra el de verdad; se dice, porque es algo que pasó sin que nadie lo
-  // pidiera.
-  const blancos = r.expedientes_en_blanco_retirados ?? [];
-  if (blancos.length) {
-    lineas.push(`${r.modo === 'seco' ? 'Se retirarían' : 'Se retiraron'} ${blancos.length} expediente(s) en blanco que alguien había abierto aquí con el mismo correo (${blancos.join(', ')}); entra el de la base vieja, con sus documentos.`);
-  }
-  return lineas.join('\n');
-}
-async function mudarRoster(modo) {
-  const contar = $('g-mudanza-roster-contar'), traer = $('g-mudanza-roster-traer');
-  contar.disabled = true; traer.disabled = true; $('err-mudanza-roster').textContent = '';
-  try {
-    const r = await pedir('/admin/mudar-roster', { method: 'POST', body: { org: ORG.id, modo } });
-    const salida = $('g-mudanza-roster-resultado');
-    salida.textContent = mudanzaRosterLegible(r);
-    salida.hidden = false;
-    if (modo === 'seco') traer.disabled = false;
-    else { aviso('g-aviso', `Los expedientes de ${ORG.nombre} ya viven en su base de la suite.`, 'bien'); await cargarRoster(ORG.id); }
-  } catch (e) {
-    /* 409 `expedientes_encimados`: alguien ya escribió datos aquí con un
-     * correo que la base vieja también trae. No se escribió nada, y decirlo
-     * con los correos por nombre es lo único que sirve para resolverlo. */
-    if (e.error === 'expedientes_encimados') {
-      const choques = (e.detalle?.conflictos ?? []).map((x) => `${x.email} (${x.porque})`);
-      $('err-mudanza-roster').textContent =
-        `No se trajo nada, a propósito: ${choques.length} correo(s) ya tienen aquí un expediente con datos, distinto del que trae la base vieja: ${choques.join('; ')}. `
-        + 'Hay que decidir uno por uno cuál se queda antes de volver a intentar.';
-      $('g-mudanza-roster-resultado').hidden = true;
-    } else {
-      $('err-mudanza-roster').textContent = e.error === 'sin_fuente' ? 'Esta API no tiene ligada la base vieja de roster101 (sólo producción la tiene).' : e.message;
-    }
-  } finally { contar.disabled = false; }
-}
-$('g-mudanza-roster-contar').onclick = () => mudarRoster('seco');
-$('g-mudanza-roster-traer').onclick = () => {
-  if (!confirm(`¿Traer de verdad los expedientes de trabajadores a ${ORG.nombre}? Lo que ya esté con la misma llave se actualiza; nada se borra.`)) return;
-  mudarRoster('escribir');
-};
-
 /* ─────────────── plan y cobro, datos de la empresa (0.14.0) ─────────────── */
 
 function pintarCobro() {
