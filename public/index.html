@@ -258,11 +258,19 @@
     <div class="acciones"><button class="btn suave" id="l-refrescar">↻ Actualizar</button></div>
   </div>
   <div class="aviso" id="l-aviso" hidden></div>
+  <div class="forma" id="f-filtro-lic">
+    <div class="tres">
+      <label for="l-f-tipo">Tipo<select id="l-f-tipo"><option value="">Todos</option></select></label>
+      <label for="l-f-programa">Programa<select id="l-f-programa"><option value="">Todos</option><option value="draw101">draw101</option><option value="nest101">nest101</option><option value="shape101">shape101</option></select></label>
+      <label for="l-f-correo">Correo<input id="l-f-correo" type="search" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="quien@ejemplo.mx"></label>
+    </div>
+    <label for="l-f-vigentes"><input type="checkbox" id="l-f-vigentes"> Sólo las que hoy dejan entrar</label>
+  </div>
   <div class="tabla"><table id="l-tabla">
-    <thead><tr><th>Cliente</th><th>Clave</th><th>Programa</th><th class="r">Máquinas</th><th>Pagada hasta</th><th>Estado</th><th></th></tr></thead>
+    <thead><tr><th>Correo</th><th>Cliente</th><th>Tipo</th><th>Programa</th><th class="r">Equipos</th><th>Vence</th><th>Estado</th><th></th></tr></thead>
     <tbody id="l-filas"></tbody>
   </table></div>
-  <p class="nota">Una clave sin fecha de pago y sin cortesía existe pero no entra: no hay periodo de prueba. «Máquinas» es usadas de lugares. Suspender corta en cuanto la app late (a más tardar en un día con internet; sin internet la app aguanta 14 días y luego abre en modo lectura).</p>
+  <p class="nota">Una clave sin fecha de pago y que no sea perpetua existe pero no entra: no hay periodo de prueba. «Equipos» es máquinas activas de las permitidas. El tipo dice de dónde salió la licencia; que venza o no es aparte, así que una perpetua de la App Store sigue saliendo al filtrar por App Store. Suspender corta en cuanto la app late (a más tardar en un día con internet; sin internet la app aguanta 14 días y luego abre en modo lectura).</p>
 
   <h2 class="h2">Nueva licencia</h2>
   <form class="forma" id="f-licencia" novalidate>
@@ -275,9 +283,15 @@
       <label for="l-lugares">Máquinas a la vez<input id="l-lugares" type="number" min="1" max="100" value="1"></label>
     </div>
     <div class="dos">
-      <label for="l-hasta">Pagada hasta <span class="opc">(opcional)</span><input id="l-hasta" type="date"><span class="pista">Sin fecha, la clave existe pero no entra hasta que marques el pago.</span></label>
-      <label for="l-cortesia"><input type="checkbox" id="l-cortesia"> Cortesía: sin fecha de corte (para ti, o para regalar)</label>
+      <label for="l-tipo">Tipo<select id="l-tipo">
+        <option value="cortesia" selected>Cortesía</option>
+        <option value="suite101">Incluida en suite101</option>
+        <option value="stripe">Pago por Stripe</option>
+        <option value="appstore">App Store</option>
+      </select><span class="pista">De dónde salió. Lo que das de alta aquí a mano casi siempre es cortesía; Stripe lo pone solo cuando cobre.</span></label>
+      <label for="l-perpetua"><input type="checkbox" id="l-perpetua"> Perpetua: no vence nunca</label>
     </div>
+    <label for="l-hasta">Pagada hasta <span class="opc">(opcional, y no aplica si es perpetua)</span><input id="l-hasta" type="date"><span class="pista">Sin fecha y sin ser perpetua, la clave existe pero no entra hasta que marques el pago.</span></label>
     <label for="l-notas">Notas <span class="opc">(opcional)</span><input id="l-notas" autocomplete="off" placeholder="cómo pagó, a quién se la diste…"></label>
     <div class="err" id="err-licencia"></div>
     <div class="acciones"><button class="btn" type="submit" id="b-licencia">Crear licencia</button></div>
@@ -293,8 +307,18 @@
         <label for="ld-hasta">Marcar pagada hasta<input id="ld-hasta" type="date"><span class="pista">El último día que ya está pagado. La app lo sabe en su siguiente latido.</span></label>
         <label for="ld-lugares">Máquinas a la vez<input id="ld-lugares" type="number" min="1" max="100"></label>
       </div>
+      <div class="dos">
+        <label for="ld-tipo">Tipo<select id="ld-tipo">
+          <option value="cortesia">Cortesía</option>
+          <option value="suite101">Incluida en suite101</option>
+          <option value="stripe">Pago por Stripe</option>
+          <option value="appstore">App Store</option>
+        </select></label>
+        <label for="ld-perpetua"><input type="checkbox" id="ld-perpetua"> Perpetua: no vence nunca</label>
+      </div>
       <div class="acciones">
         <button class="btn" type="button" id="ld-pago">Marcar pago</button>
+        <button class="btn suave" type="button" id="ld-guardar-tipo">Guardar tipo y vigencia</button>
         <button class="btn suave" type="button" id="ld-guardar-lugares">Cambiar máquinas</button>
         <button class="btn suave" type="button" id="ld-suspender">Suspender</button>
         <button class="btn peligro chico" type="button" id="ld-borrar">Borrar</button>

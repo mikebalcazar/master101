@@ -791,9 +791,15 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('velo
 let LIC = null;          // la licencia abierta en el detalle
 
 const diaLegible = (d) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString('es-MX', { timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+/* Cómo se llama cada tipo en pantalla. La lista la cierra la API (contrato
+ * 0.19.0): un tipo que no esté aquí se enseña tal cual en vez de quedarse en
+ * blanco, para que agregar uno del lado de la API no deje una columna muda. */
+const TIPOS_LICENCIA = { cortesia: 'Cortesía', suite101: 'Incluida en suite101', stripe: 'Pago por Stripe', appstore: 'App Store' };
+const nombreTipo = (t) => TIPOS_LICENCIA[t] || t || '—';
+
 function estadoDe(l) {
   if (l.estado === 'suspendida') return ['suspendida', 'mal'];
-  if (l.vigente) return [l.cortesia ? 'cortesía' : 'vigente', 'bien'];
+  if (l.vigente) return [l.perpetua ? 'no vence' : 'vigente', 'bien'];
   return ['sin pago', 'mal'];
 }
 const ACCIONES = { crear: 'Se creó', cambiar: 'Cambio', pago: 'Pago', activar: 'Se activó una máquina', latido_negado: 'Latido negado', desactivar: 'Se liberó una máquina', borrar: 'Se borró' };
@@ -810,7 +816,10 @@ function detalleLegible(d) {
 
 async function irALicencias() {
   aviso('l-aviso', '');
-  $('l-filas').innerHTML = '<tr><td colspan="7" class="nota">Cargando…</td></tr>';
+  $('l-filas').innerHTML = '<tr><td colspan="8" class="nota">Cargando…</td></tr>';
+  // Los filtros se limpian al entrar: una lista corta por un filtro que quedó
+  // puesto la vez pasada se lee como que no hay licencias.
+  $('l-f-tipo').value = ''; $('l-f-programa').value = ''; $('l-f-correo').value = ''; $('l-f-vigentes').checked = false;
   $('f-licencia').reset();
   $('err-licencia').textContent = '';
   $('l-detalle').hidden = true;
@@ -819,20 +828,41 @@ async function irALicencias() {
   await cargarLicencias();
 }
 
+/* Los filtros los resuelve la API, no el navegador: el día que haya cientos
+ * de licencias, traerlas todas para esconder la mayoría sería traer de más, y
+ * «vigente» se decide con la fecha de hoy del servidor, no con la del
+ * teléfono de quien mira. */
+const filtroLic = () => {
+  const p = new URLSearchParams();
+  if ($('l-f-tipo').value) p.set('tipo', $('l-f-tipo').value);
+  if ($('l-f-programa').value) p.set('programa', $('l-f-programa').value);
+  const correo = $('l-f-correo').value.trim();
+  if (correo) p.set('correo', correo);
+  if ($('l-f-vigentes').checked) p.set('vigentes', '1');
+  return p.toString();
+};
+
 async function cargarLicencias() {
   try {
-    const d = await pedir('/licencias');
+    const q = filtroLic();
+    const d = await pedir(`/licencias${q ? `?${q}` : ''}`);
     const filas = d.filas ?? [];
-    $('l-sub').textContent = `${filas.length} licencia${filas.length === 1 ? '' : 's'}. Quién tiene clave, hasta cuándo pagó y en cuántas máquinas está.`;
-    if (!filas.length) { $('l-filas').innerHTML = '<tr><td colspan="7" class="nota">Todavía no hay licencias. Crea la primera abajo.</td></tr>'; return; }
+    pintarFiltroTipos(d.por_tipo || {});
+    const hayFiltro = q.length > 0;
+    $('l-sub').textContent = `${filas.length} licencia${filas.length === 1 ? '' : 's'}${hayFiltro ? ' con este filtro' : ''}. Quién tiene clave, en cuántos equipos está y cuándo vence.`;
+    if (!filas.length) {
+      $('l-filas').innerHTML = `<tr><td colspan="8" class="nota">${hayFiltro ? 'Ninguna licencia cumple este filtro. Quítalo para verlas todas.' : 'Todavía no hay licencias. Crea la primera abajo.'}</td></tr>`;
+      return;
+    }
     $('l-filas').innerHTML = filas.map((l) => {
       const [texto, tono] = estadoDe(l);
       return `<tr data-lic="${esc(l.id)}">
-        <td>${esc(l.cliente)}${l.correo ? `<div class="nota">${esc(l.correo)}</div>` : ''}</td>
-        <td class="mono">${esc(l.clave)}</td>
+        <td>${l.correo ? esc(l.correo) : '<span class="nota">sin correo</span>'}</td>
+        <td>${esc(l.cliente)}<div class="nota mono">${esc(l.clave)}</div></td>
+        <td>${esc(nombreTipo(l.tipo))}</td>
         <td>${esc(l.programa)}</td>
         <td class="r">${l.activaciones} de ${l.lugares}</td>
-        <td>${l.cortesia ? 'cortesía' : esc(diaLegible(l.paga_hasta))}</td>
+        <td>${l.perpetua ? 'No vence' : esc(diaLegible(l.paga_hasta))}</td>
         <td><span class="${tono}">${texto}</span></td>
         <td><div class="acciones"><button class="btn suave chico" data-ver-lic="${esc(l.id)}">Ver</button></div></td>
       </tr>`;
@@ -844,6 +874,18 @@ async function cargarLicencias() {
   }
 }
 
+/* Los conteos vienen SIN el filtro de tipo puesto, así que el que está
+ * escogido también dice cuántas hay: si dijera cero de los demás, el filtro
+ * se volvería un callejón sin salida. */
+function pintarFiltroTipos(porTipo) {
+  const sel = $('l-f-tipo');
+  const escogido = sel.value;
+  const total = Object.values(porTipo).reduce((a, b) => a + b, 0);
+  sel.innerHTML = `<option value="">Todos (${total})</option>` +
+    Object.keys(TIPOS_LICENCIA).map((k) => `<option value="${k}">${esc(nombreTipo(k))} (${porTipo[k] ?? 0})</option>`).join('');
+  sel.value = escogido;
+}
+
 async function abrirLicencia(id) {
   aviso('ld-aviso', '');
   try {
@@ -852,9 +894,11 @@ async function abrirLicencia(id) {
     const [texto] = estadoDe(l);
     $('ld-titulo').textContent = `${l.cliente} · ${l.programa}`;
     $('ld-clave').textContent = l.clave;
-    $('ld-resumen').textContent = `${texto}${l.cortesia ? '' : ` · pagada hasta ${diaLegible(l.paga_hasta)}`} · ${l.lugares} máquina${l.lugares === 1 ? '' : 's'} a la vez · plan ${l.plan}${l.notas ? ` · ${l.notas}` : ''}`;
+    $('ld-resumen').textContent = `${nombreTipo(l.tipo)} · ${texto}${l.perpetua ? '' : ` · pagada hasta ${diaLegible(l.paga_hasta)}`} · ${l.lugares} máquina${l.lugares === 1 ? '' : 's'} a la vez · plan ${l.plan}${l.correo ? ` · ${l.correo}` : ''}${l.notas ? ` · ${l.notas}` : ''}`;
     $('ld-hasta').value = l.paga_hasta || '';
     $('ld-lugares').value = l.lugares;
+    $('ld-tipo').value = l.tipo || 'cortesia';
+    $('ld-perpetua').checked = !!l.perpetua;
     $('ld-suspender').textContent = l.estado === 'suspendida' ? 'Reanudar' : 'Suspender';
     $('ld-borrar').textContent = 'Borrar'; delete $('ld-borrar').dataset.seguro;
     const acts = l.activaciones ?? [];
@@ -892,6 +936,21 @@ async function liberar(huella, btn) {
 
 $('l-refrescar').onclick = cargarLicencias;
 
+for (const id of ['l-f-tipo', 'l-f-programa', 'l-f-vigentes']) $(id).onchange = cargarLicencias;
+// El correo se busca al picar Enter o al salir del campo, no en cada tecla:
+// una llamada por letra no le enseña nada a nadie.
+$('l-f-correo').onchange = cargarLicencias;
+$('l-f-correo').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); cargarLicencias(); } };
+
+$('ld-guardar-tipo').onclick = async () => {
+  const b = $('ld-guardar-tipo'); b.disabled = true;
+  try {
+    await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { tipo: $('ld-tipo').value, perpetua: $('ld-perpetua').checked } });
+    aviso('ld-aviso', 'Guardado.', 'bien');
+    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+  } catch (e) { aviso('ld-aviso', e.message); } finally { b.disabled = false; }
+};
+
 $('f-licencia').onsubmit = async (ev) => {
   ev.preventDefault();
   const cliente = $('l-cliente').value.trim();
@@ -900,7 +959,8 @@ $('f-licencia').onsubmit = async (ev) => {
   if (correo && !/^\S+@\S+\.\S+$/.test(correo)) { $('err-licencia').textContent = 'Ese correo no se ve bien.'; return; }
   const cuerpo = {
     cliente, programa: $('l-programa').value, lugares: Number($('l-lugares').value) || 1,
-    cortesia: $('l-cortesia').checked,
+    tipo: $('l-tipo').value,
+    perpetua: $('l-perpetua').checked,
     ...(correo ? { correo } : {}),
     ...($('l-hasta').value ? { paga_hasta: $('l-hasta').value } : {}),
     ...($('l-notas').value.trim() ? { notas: $('l-notas').value.trim() } : {}),
