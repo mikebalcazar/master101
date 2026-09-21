@@ -230,7 +230,14 @@ async function recorrido(navegador) {
   await pagina.waitForSelector('#a-listo:not([hidden])', { timeout: 30000 });
   const listo = await pagina.textContent('#a-listo');
   rev(listo.includes(ORG), 'la pantalla dice que la empresa quedó creada', ORG);
-  rev(/versión 3|versión [4-9]/.test(listo), 'y que su base está en la versión 3 o más', listo.match(/versión \d+/)?.[0] ?? '');
+  /* La versión del OrgDB se lee como NÚMERO, no con un patrón de un dígito.
+   * El que había —`/versión 3|versión [4-9]/`— dejó de casar en cuanto el
+   * OrgDB pasó de 9: «versión 19» no contiene ninguno de esos dos, así que
+   * la prueba empezó a fallar por crecer, no por romperse. Lo que se quiere
+   * comprobar es que la base de la empresa recién creada nació con sus
+   * migraciones corridas, o sea un número y no cero. */
+  const version = Number(listo.match(/versión (\d+)/)?.[1] ?? 0);
+  rev(version >= 3, 'y que su base nació con sus migraciones corridas', `versión ${version}`);
   rev(listo.includes(`dueno-${ORG}@ejemplo.mx`), 'y con qué correo entra el dueño');
   rev(/dash101, quell101, peek101, quote101/.test(listo) && !/roster101/.test(listo), 'y qué apps quedaron prendidas (roster no)', listo.match(/Apps prendidas: [^.]+/)?.[0] ?? '');
   rev(/Cobro: cortesía/.test(listo), 'y que es cortesía');
@@ -410,7 +417,8 @@ async function escritorio(navegador) {
   rev(columnas.includes('supply'), 'y supply101 tiene su columna (21-sep: dejó de colgar de dash101)');
   rev((await pagina.locator('#e-tabla thead th').count()) === columnas.length + 6,
       'y seis más: empresa, plan, gente, última entrada, estado y acciones');
-  rev((await pagina.locator(`#e-filas tr[data-org="${ORG}"] input[data-app]`).count()) === 6, 'seis interruptores por empresa');
+  rev((await pagina.locator(`#e-filas tr[data-org="${ORG}"] input[data-app]`).count()) === columnas.length,
+      'cada empresa trae un interruptor por columna de app');
   await sinScroll(pagina, 'la tabla en escritorio');
   rev(errores.length === 0, 'cero errores de JavaScript', errores.slice(0, 2).join(' | '));
   await ctx.close();
