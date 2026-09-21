@@ -398,8 +398,18 @@ async function escritorio(navegador) {
   await entrarEnPantalla(pagina, SUPER);
   await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 20000 });
   await pagina.waitForSelector(`#e-filas tr[data-org="${ORG}"]`, { timeout: 15000 });
-  rev((await pagina.locator('#e-tabla thead th.app').count()) === 6, 'seis columnas de apps');
-  rev((await pagina.locator('#e-tabla thead th').count()) === 12, 'doce columnas: empresa, plan, seis apps, gente, última entrada, estado y acciones');
+  /* Las columnas de app SON las apps: se cuentan contra la lista del código,
+   * no contra un número escrito aquí. El 21-sep agregar `supply` rompió esta
+   * línea sin que nada estuviera mal, y al siguiente que agregue una app le
+   * pasaría lo mismo. Lo que de verdad importa es que el encabezado y las
+   * casillas de cada renglón digan lo mismo, y que no sobre ni falte una. */
+  const columnas = await pagina.locator('#e-tabla thead th.app').evaluateAll((l) => l.map((t) => t.textContent.trim()));
+  const enElRenglon = await pagina.locator('#e-filas tr').first().locator('td.app input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app));
+  rev(columnas.length > 0 && JSON.stringify(columnas) === JSON.stringify(enElRenglon),
+      'el encabezado y las casillas de cada renglón hablan de las mismas apps', `${JSON.stringify(columnas)} vs ${JSON.stringify(enElRenglon)}`);
+  rev(columnas.includes('supply'), 'y supply101 tiene su columna (21-sep: dejó de colgar de dash101)');
+  rev((await pagina.locator('#e-tabla thead th').count()) === columnas.length + 6,
+      'y seis más: empresa, plan, gente, última entrada, estado y acciones');
   rev((await pagina.locator(`#e-filas tr[data-org="${ORG}"] input[data-app]`).count()) === 6, 'seis interruptores por empresa');
   await sinScroll(pagina, 'la tabla en escritorio');
   rev(errores.length === 0, 'cero errores de JavaScript', errores.slice(0, 2).join(' | '));

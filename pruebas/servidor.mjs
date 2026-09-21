@@ -47,7 +47,7 @@ export function apiFalsa() {
     ['u-demo-owner', { id: 'u-demo-owner', correo: 'owner@demo.mx', nombre: 'Owner Demo', creado_at: '2026-09-01T00:00:00Z' }],
   ]);
   const orgs = new Map([
-    ['demo', { id: 'demo', nombre: 'Demo', plan: 'prueba', apps: { dash: true, quell: true, peek: true, cotizador: true, roster: false, nest: false }, moneda: 'MXN', activa: true, creado_at: '2026-09-01T00:00:00Z' }],
+    ['demo', { id: 'demo', nombre: 'Demo', plan: 'prueba', apps: { dash: true, supply: true, quell: true, peek: true, cotizador: true, roster: false, nest: false }, moneda: 'MXN', activa: true, creado_at: '2026-09-01T00:00:00Z' }],
   ]);
   const miembros = new Map([['demo', [{ org_id: 'demo', usuario_id: 'u-demo-owner', rol: 'owner', apps: [], negocios: [] }]]]);
   const sesiones = new Map();   // cookie → usuario_id
@@ -184,7 +184,7 @@ export function apiFalsa() {
       if (!/^[a-z0-9-]{2,40}$/.test(id)) return err('datos_invalidos', 400, { id: 'slug de a-z, 0-9 y guiones' });
       if (!cuerpo.nombre) return err('datos_invalidos', 400, { falta: 'nombre' });
       if (orgs.has(id)) return err('datos_invalidos', 409, { id: 'ya existe' });
-      const o = { id, nombre: cuerpo.nombre, plan: cuerpo.plan || '', apps: { dash: false, quell: false, peek: false, cotizador: false, roster: false, nest: false, ...(cuerpo.apps || {}) }, moneda: cuerpo.moneda || 'MXN', activa: true, creado_at: new Date().toISOString() };
+      const o = { id, nombre: cuerpo.nombre, plan: cuerpo.plan || '', apps: { dash: false, supply: false, quell: false, peek: false, cotizador: false, roster: false, nest: false, ...(cuerpo.apps || {}) }, moneda: cuerpo.moneda || 'MXN', activa: true, creado_at: new Date().toISOString() };
       orgs.set(id, o); miembros.set(id, []);
       apunta(yo.correo, id, 'creada', null, `${o.nombre} · ${Object.entries(o.apps).filter(([, v]) => v).map(([k]) => k).join(', ')}`);
       return ok({ org: o, org_db_version: 3 }, 201);
