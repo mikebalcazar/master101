@@ -17,9 +17,15 @@ const API = '/s101';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-/** Las seis apps de una empresa, con la llave que usa `orgs.apps` en la API. */
+/** Las apps de una empresa, con la llave que usa `orgs.apps` en la API.
+ *
+ *  `supply` se agregó el 21-sep-2026. Va junto a `dash` porque supply101 es
+ *  la cara de empleado del mismo módulo de órdenes y no se cobra aparte: a
+ *  una empresa se le prenden las dos. Lo que se reparte persona por persona
+ *  —y ahí sí por separado— se hace en workshop101. */
 export const APPS = [
-  ['dash', 'dash101'], ['quell', 'quell101'], ['peek', 'peek101'],
+  ['dash', 'dash101'], ['supply', 'supply101'],
+  ['quell', 'quell101'], ['peek', 'peek101'],
   ['cotizador', 'quote101'], ['roster', 'roster101'], ['nest', 'nest101'],
 ];
 
