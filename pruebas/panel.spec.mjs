@@ -295,6 +295,28 @@ async function recorrido(navegador) {
   // ── gente ──
   await pagina.click(`#e-filas [data-gente="${ORG}"]`);
   await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 10000 });
+
+  /* ── el «atrás» del navegador (Mike, 22-sep-2026) ──
+   * En el escritorio esto se mide contando entradas del historial
+   * (`pruebas/el-atras.mjs`); aquí se mide en un navegador de verdad, que es
+   * donde se sufría: llegar a la gente de una empresa son tres clicks y el
+   * «atrás» sacaba del panel completo en vez de regresar a la lista. */
+  await pagina.goBack();
+  await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 10000 });
+  rev(new URL(pagina.url()).origin === new URL(BASE).origin, 'el «atrás» del navegador no saca del panel', pagina.url());
+  rev(await pagina.locator('#v-gente').isHidden(), 'y regresa a la lista de empresas');
+  await pagina.click(`#e-filas [data-gente="${ORG}"]`);
+  await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 10000 });
+  await pagina.click('#g-volver');
+  await pagina.waitForSelector('#v-empresas:not([hidden])', { timeout: 10000 });
+  rev(true, '«← Empresas» también regresa a la lista');
+  /* Y retrocediendo, no apilando: si hubiera escrito una entrada nueva no
+   * habría «adelante» al cual ir, y el siguiente «atrás» reabriría la empresa
+   * que se acaba de cerrar. */
+  await pagina.goForward();
+  const reabre = await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 5000 }).then(() => true, () => false);
+  rev(reabre, '«← Empresas» retrocede en el historial, no apila otra entrada');
+
   await pagina.waitForSelector('#g-filas td.mono', { timeout: 15000 });
   // 0.2.0: la bitácora de la empresa ya trae lo que se hizo arriba, con quién.
   await pagina.waitForFunction(() => document.querySelectorAll('#g-bitacora tr').length > 1, null, { timeout: 15000 });

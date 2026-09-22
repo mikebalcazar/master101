@@ -13,6 +13,8 @@
  * Regla de la casa: cambiar un interruptor hace PATCH y se repinta con lo que
  * la API devuelve, nunca con lo que se cree. */
 
+import { irA, sellar, regresar, abrirEncima, alNavegar } from './navegar.js';
+
 const API = '/s101';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -108,6 +110,39 @@ function mostrar(cual) {
   for (const b of document.querySelectorAll('#menu [data-ir]')) b.classList.toggle('activo', `v-${b.dataset.ir}` === cual);
   window.scrollTo(0, 0);
 }
+
+/* ─────────────── el «atrás» del navegador ───────────────
+ * Mike, 22-sep-2026: «hay funciones que son 3 o 4 clicks para llegar y si le
+ * picas back al navegador te saca y pierdes la ruta de navegación». Aquí la
+ * ruta más honda es empresas → una empresa → quitar a alguien, y el «atrás»
+ * las deshace una por una.
+ *
+ * Las pantallas de entrada —correo, contraseña, código— NO entran al
+ * historial a propósito: son pasos de un trámite, no lugares. Si «atrás» los
+ * recorriera, alguien podría caer a media entrada con un código ya gastado y
+ * creer que el panel se descompuso. */
+const HONDURA = { seccion: 1, detalle: 2 };
+
+function pintarLugar(donde, dato, volviendo) {
+  // Sin sesión no hay a dónde regresar: si alguien salió y pica «atrás», la
+  // pantalla de entrada se queda donde está en vez de enseñar un panel que
+  // la API ya no va a contestar.
+  if (!YO || !YO.superadmin) return undefined;
+  if (donde === 'alta') return verAlta();
+  if (donde === 'super') return verSuper();
+  if (donde === 'licencias') return verLicencias(volviendo);
+  if (donde === 'gente') return verGente(dato);
+  if (donde === 'licencia') return verLicencia(dato);
+  return verEmpresas();
+}
+alNavegar(pintarLugar);
+
+const irAEmpresas = () => irA(HONDURA.seccion, 'empresas');
+const irAAlta = () => irA(HONDURA.seccion, 'alta');
+const irASuper = () => irA(HONDURA.seccion, 'super');
+const irALicencias = () => irA(HONDURA.seccion, 'licencias');
+const irAGente = (id) => irA(HONDURA.detalle, 'gente', id);
+const irALicencia = (id) => irA(HONDURA.detalle, 'licencia', id);
 
 function aviso(id, texto, tono = 'mal') {
   const el = $(id);
@@ -336,7 +371,8 @@ async function entrar() {
   $('quien-n').textContent = YO.usuario.correo;
   $('quien').hidden = false;
   $('menu').hidden = false;
-  await irAEmpresas();
+  sellar(HONDURA.seccion, 'empresas');
+  await verEmpresas();
 }
 
 /* ─────────────── empresas ─────────────── */
@@ -347,7 +383,7 @@ async function cargarEmpresas() {
   return EMPRESAS;
 }
 
-async function irAEmpresas() {
+async function verEmpresas() {
   aviso('e-aviso', '');
   mostrar('v-empresas');
   $('e-filas').innerHTML = '<tr><td colspan="12" class="nota">Cargando…</td></tr>';
@@ -462,7 +498,7 @@ $('a-nombre').oninput = () => { if (!idTocado) $('a-id').value = slugDe($('a-nom
 $('a-cortesia').onchange = () => { $('l-a-hasta').hidden = $('a-cortesia').checked; };
 $('a-id').oninput = () => { idTocado = $('a-id').value !== ''; };
 
-function irAAlta() {
+function verAlta() {
   $('f-alta').reset();
   $('l-a-hasta').hidden = true;
   idTocado = false;
@@ -526,7 +562,7 @@ $('f-alta').onsubmit = async (ev) => {
 
 /* ─────────────── gente de una empresa ─────────────── */
 
-async function irAGente(id) {
+async function verGente(id) {
   ORG = EMPRESAS.find((o) => o.id === id) || { id, nombre: id };
   aviso('g-aviso', '');
   $('g-id').textContent = ORG.id;
@@ -676,7 +712,7 @@ async function cargarGente() {
   }
 }
 
-$('g-volver').onclick = irAEmpresas;
+$('g-volver').onclick = regresar;
 
 $('f-gente').onsubmit = async (ev) => {
   ev.preventDefault();
@@ -697,6 +733,10 @@ $('f-gente').onsubmit = async (ev) => {
 /* Quitar a alguien pide escribir su correo tal cual: es la confirmación que
  * no se da por reflejo. */
 let porQuitar = null;
+/* Cerrar el velo con el botón de la app y picar «atrás» tienen que hacer lo
+ * mismo. Si el botón nada más lo escondiera, el siguiente «atrás» volvería a
+ * abrir la confirmación que la persona acaba de cancelar. */
+let cerrarVelo = () => { $('velo').hidden = true; porQuitar = null; };
 function pedirConfirmacion(usuario_id, correoDe, que = 'miembro') {
   porQuitar = { usuario_id, correo: correoDe, que };
   $('q-titulo').textContent = que === 'super' ? 'Quitar a este superadmin' : 'Quitar a esta persona';
@@ -707,32 +747,37 @@ function pedirConfirmacion(usuario_id, correoDe, que = 'miembro') {
   $('q-escrito').value = '';
   $('q-quitar').disabled = true;
   $('velo').hidden = false;
+  cerrarVelo = abrirEncima(() => { $('velo').hidden = true; porQuitar = null; });
   $('q-escrito').focus();
 }
 $('q-escrito').oninput = () => { $('q-quitar').disabled = $('q-escrito').value.trim().toLowerCase() !== (porQuitar?.correo ?? '#'); };
-$('q-cancelar').onclick = () => { $('velo').hidden = true; porQuitar = null; };
+$('q-cancelar').onclick = () => cerrarVelo();
 $('q-quitar').onclick = async () => {
   if (!porQuitar) return;
   const b = $('q-quitar'); b.disabled = true; b.textContent = 'Quitando…';
   const esSuper = porQuitar.que === 'super';
   const cajaAviso = esSuper ? 's-aviso' : 'g-aviso';
+  /* El correo se guarda antes de cerrar: cerrar el velo es un paso atrás del
+   * navegador, y el navegador avisa cuando quiere, no en la línea siguiente.
+   * Para entonces `porQuitar` ya puede estar vacío y el aviso saldría a
+   * medias. */
+  const quien = porQuitar.correo;
+  const dondeEntraba = ORG?.nombre;
   try {
     if (esSuper) {
       await pedir(`/admin/superadmins/${encodeURIComponent(porQuitar.usuario_id)}`, { method: 'DELETE' });
-      $('velo').hidden = true;
-      aviso(cajaAviso, `${porQuitar.correo} ya no es superadmin.`, 'bien');
-      porQuitar = null;
+      cerrarVelo();
+      aviso(cajaAviso, `${quien} ya no es superadmin.`, 'bien');
       await cargarSuper();
     } else {
       await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros/${encodeURIComponent(porQuitar.usuario_id)}`, { method: 'DELETE' });
-      $('velo').hidden = true;
-      aviso(cajaAviso, `${porQuitar.correo} ya no entra a ${ORG.nombre}.`, 'bien');
-      porQuitar = null;
+      cerrarVelo();
+      aviso(cajaAviso, `${quien} ya no entra a ${dondeEntraba}.`, 'bien');
       await Promise.all([cargarGente(), cargarBitacoraDe(ORG.id), cargarEmpresas().catch(() => {})]);
     }
   } catch (e) {
     aviso(cajaAviso, e.error === 'datos_invalidos' && e.detalle?.motivo === 'a_ti_mismo' ? 'No te puedes quitar a ti mismo.' : e.message);
-    $('velo').hidden = true;
+    cerrarVelo();
   } finally { b.textContent = 'Quitar'; }
 };
 
@@ -740,7 +785,7 @@ $('q-quitar').onclick = async () => {
  * Quién manda en este panel. Los candados los pone la API (el último no se
  * quita, nadie se quita a sí mismo); aquí sólo se enseñan sus mensajes. */
 
-async function irASuper() {
+async function verSuper() {
   aviso('s-aviso', '');
   $('s-filas').innerHTML = '<tr><td colspan="3" class="nota">Cargando…</td></tr>';
   $('s-bitacora').innerHTML = '';
@@ -820,17 +865,21 @@ function detalleLegible(d) {
   } catch { return String(d); }
 }
 
-async function irALicencias() {
+async function verLicencias(volviendo = false) {
   aviso('l-aviso', '');
+  $('l-detalle').hidden = true;
+  LIC = null;
+  mostrar('v-licencias');
+  /* Regresar de una licencia a la lista NO es entrar a la lista: los filtros
+   * que la persona puso siguen puestos y lo que está pintado sigue sirviendo.
+   * Borrárselos al picar «atrás» sería quitarle el trabajo que ya hizo. */
+  if (volviendo) return;
   $('l-filas').innerHTML = '<tr><td colspan="8" class="nota">Cargando…</td></tr>';
   // Los filtros se limpian al entrar: una lista corta por un filtro que quedó
   // puesto la vez pasada se lee como que no hay licencias.
   $('l-f-tipo').value = ''; $('l-f-programa').value = ''; $('l-f-correo').value = ''; $('l-f-vigentes').checked = false;
   $('f-licencia').reset();
   $('err-licencia').textContent = '';
-  $('l-detalle').hidden = true;
-  LIC = null;
-  mostrar('v-licencias');
   await cargarLicencias();
 }
 
@@ -873,7 +922,7 @@ async function cargarLicencias() {
         <td><div class="acciones"><button class="btn suave chico" data-ver-lic="${esc(l.id)}">Ver</button></div></td>
       </tr>`;
     }).join('');
-    for (const btn of $('l-filas').querySelectorAll('[data-ver-lic]')) btn.onclick = () => abrirLicencia(btn.dataset.verLic);
+    for (const btn of $('l-filas').querySelectorAll('[data-ver-lic]')) btn.onclick = () => irALicencia(btn.dataset.verLic);
   } catch (e) {
     $('l-filas').innerHTML = '';
     aviso('l-aviso', e.message);
@@ -892,7 +941,7 @@ function pintarFiltroTipos(porTipo) {
   sel.value = escogido;
 }
 
-async function abrirLicencia(id) {
+async function verLicencia(id) {
   aviso('ld-aviso', '');
   try {
     const l = await pedir(`/licencias/${encodeURIComponent(id)}`);
@@ -936,7 +985,7 @@ async function liberar(huella, btn) {
   try {
     await pedir(`/licencias/${encodeURIComponent(LIC.id)}/desactivar`, { method: 'POST', body: { huella } });
     aviso('ld-aviso', 'Lugar liberado. Esa máquina tendrá que volver a activar.', 'bien');
-    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+    await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
   } catch (e) { aviso('ld-aviso', e.message); btn.disabled = false; }
 }
 
@@ -953,7 +1002,7 @@ $('ld-guardar-tipo').onclick = async () => {
   try {
     await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { tipo: $('ld-tipo').value, perpetua: $('ld-perpetua').checked } });
     aviso('ld-aviso', 'Guardado.', 'bien');
-    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+    await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
   } catch (e) { aviso('ld-aviso', e.message); } finally { b.disabled = false; }
 };
 
@@ -978,7 +1027,7 @@ $('f-licencia').onsubmit = async (ev) => {
     $('f-licencia').reset();
     aviso('l-aviso', `Lista. La clave de ${r.cliente} es ${r.clave}. Dásela tal cual: la teclea al instalar.`, 'bien');
     await cargarLicencias();
-    await abrirLicencia(r.id);
+    await verLicencia(r.id);
   } catch (e) {
     $('err-licencia').textContent = e.message;
   } finally { b.disabled = false; b.textContent = 'Crear licencia'; }
@@ -992,7 +1041,7 @@ $('ld-pago').onclick = async () => {
   try {
     await pedir(`/licencias/${encodeURIComponent(LIC.id)}/pago`, { method: 'POST', body: { hasta } });
     aviso('ld-aviso', `Pagada hasta ${diaLegible(hasta)}. La app lo sabe en su siguiente latido.`, 'bien');
-    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+    await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
   } catch (e) { aviso('ld-aviso', e.message); }
   finally { b.disabled = false; }
 };
@@ -1004,7 +1053,7 @@ $('ld-guardar-lugares').onclick = async () => {
   try {
     await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { lugares } });
     aviso('ld-aviso', `Ahora ${lugares} máquina${lugares === 1 ? '' : 's'} a la vez.`, 'bien');
-    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+    await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
   } catch (e) { aviso('ld-aviso', e.message); }
   finally { b.disabled = false; }
 };
@@ -1016,7 +1065,7 @@ $('ld-suspender').onclick = async () => {
   try {
     await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { estado } });
     aviso('ld-aviso', estado === 'suspendida' ? 'Suspendida. En su siguiente latido la app pasa a modo lectura.' : 'Reanudada. En su siguiente latido la app vuelve a entrar.', 'bien');
-    await Promise.all([abrirLicencia(LIC.id), cargarLicencias()]);
+    await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
   } catch (e) { aviso('ld-aviso', e.message); }
   finally { b.disabled = false; }
 };
