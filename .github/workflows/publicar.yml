@@ -85,7 +85,7 @@ jobs:
       - name: Que el JavaScript compile
         run: |
           set -euo pipefail
-          for f in public/app.js worker/index.js scripts/*.mjs pruebas/*.mjs; do
+          for f in public/*.js worker/index.js scripts/*.mjs pruebas/*.mjs; do
             node --check "$f"
           done
           echo "todos los archivos pasan node --check"
@@ -98,6 +98,13 @@ jobs:
       # nada publicado.
       - name: Qué ofrece la pantalla de entrada
         run: node pruebas/entrada.mjs
+
+      # El «atrás» del navegador, medido contando entradas del historial. Un
+      # `pushState` de más obliga a picar atrás dos veces y uno de menos saca
+      # del panel: las dos se ven igual de bien en la pantalla. No necesita
+      # red, así que va antes de publicar.
+      - name: El «atrás» del navegador
+        run: node pruebas/el-atras.mjs
 
       - name: Sellar la portada con este commit
         run: node scripts/sellar.mjs "${{ github.sha }}"
