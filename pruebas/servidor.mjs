@@ -211,6 +211,17 @@ export function apiFalsa() {
       }
       return ok(conConteos(o));
     }
+    /* 0.45.0 · lo de quote101 por negocio. El banco contesta un huérfano y dos
+     * negocios vivos, que es el caso por el que existe esta pantalla. */
+    m = p.match(/^\/admin\/orgs\/([^/]+)\/quote$/);
+    if (m && metodo === 'GET') {
+      if (!orgs.has(m[1])) return err('org_desconocida', 404);
+      return ok({ org: m[1], negocios: [
+        { negocio_id: 'negocio-borrado', nombre: null, existe: false, clientes: 38, proyectos: 12, cotizaciones: 91, ultima_cotizacion: '2026-09-21T18:04:00.000Z' },
+        { negocio_id: 'n-1', nombre: 'Taller 101', existe: true, clientes: 0, proyectos: 0, cotizaciones: 0, ultima_cotizacion: null },
+        { negocio_id: 'n-2', nombre: 'Forespot Muebles', existe: true, clientes: 2, proyectos: 1, cotizaciones: 3, ultima_cotizacion: '2026-09-10T12:00:00.000Z' },
+      ] });
+    }
     m = p.match(/^\/admin\/orgs\/([^/]+)\/bitacora$/);
     if (m && metodo === 'GET') {
       if (!orgs.has(m[1])) return err('org_desconocida', 404);
