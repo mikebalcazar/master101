@@ -12,6 +12,16 @@ name = "master101"
 main = "worker/index.js"
 compatibility_date = "2026-09-01"
 
+# Desde el 25-sep-2026 master101 vive también en master101.taller101.com: el
+# DNS de taller101.com está en Cloudflare y el Worker se cuelga del dominio
+# como *custom domain*; Cloudflare pone el registro y el certificado.
+# `workers_dev = true` es obligatorio al lado de `routes`: sin él wrangler
+# apaga workers.dev (le pasó a peek101). Las dos direcciones se quedan.
+workers_dev = true
+routes = [
+  { pattern = "master101.taller101.com", custom_domain = true }
+]
+
 # La interfaz, tal cual está en `public/`: un HTML, un JS, un CSS y las
 # fuentes. Sin empaquetador. `run_worker_first` deja que `/s101/*` llegue al
 # Worker antes de que los assets contesten con un 404 o con el index.html.
@@ -35,6 +45,8 @@ enabled = true
 
 [env.staging]
 name = "master101-staging"
+# `routes` se hereda del nivel de arriba; staging NO se cuelga del dominio.
+routes = []
 
 [env.staging.assets]
 directory = "./public"
