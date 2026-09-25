@@ -22,6 +22,11 @@ routes = [
   { pattern = "master101.taller101.com", custom_domain = true }
 ]
 
+# La dirección de workers.dev manda al dominio (Mike, 25-sep: «redirigir, no
+# apagar»). Sólo producción: `vars` no se hereda y staging no lleva esto.
+[vars]
+DOMINIO_PROPIO = "master101.taller101.com"
+
 # La interfaz, tal cual está en `public/`: un HTML, un JS, un CSS y las
 # fuentes. Sin empaquetador. `run_worker_first` deja que `/s101/*` llegue al
 # Worker antes de que los assets contesten con un 404 o con el index.html.

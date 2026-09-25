@@ -208,10 +208,12 @@ jobs:
           set -euo pipefail
           node scripts/sellar.mjs "${{ github.sha }}"
           npx wrangler deploy | tee /tmp/prod.txt
-          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/prod.txt | head -1)
-          [ -n "$url" ] || { echo 'no pude sacar la liga de la salida de wrangler' >&2; exit 1; }
+          grep -qE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/prod.txt || { echo 'no pude sacar la liga de la salida de wrangler' >&2; exit 1; }
+          # Producción se mide en su dominio: workers.dev manda para allá
+          # desde el 25-sep (DOMINIO_PROPIO en wrangler.toml).
+          url=https://master101.taller101.com
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "producción publicada: $url"
+          echo "producción publicada: $url (y en workers.dev, que redirige)"
 
       - name: Medir producción
         env:
