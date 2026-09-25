@@ -34,7 +34,11 @@ DOMINIO_PROPIO = "master101.taller101.com"
 directory = "./public"
 binding = "ASSETS"
 not_found_handling = "404-page"
-run_worker_first = ["/s101/*"]
+# Todo pasa por el Worker. Con `["/s101/*"]` la capa de archivos contestaba la
+# pantalla sin que el Worker corriera, y la redirección de workers.dev al
+# dominio (25-sep) nunca se ejecutaría (se midió en peek101). El Worker sirve
+# los archivos él mismo con `env.ASSETS.fetch`.
+run_worker_first = true
 
 # La API, desde el mismo origen. No hay URL: es un *service binding*, o sea
 # una llamada de Worker a Worker que nunca sale a internet.
