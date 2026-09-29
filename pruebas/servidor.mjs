@@ -188,7 +188,8 @@ export function apiFalsa() {
     }
     if (p === '/licencias' || p.startsWith('/licencias/')) {
       if (!superadmin) return err('sin_permiso', 403);
-      const vista = (l) => ({ ...l, activaciones: l.activaciones.filter((a) => a.activa).length, vigente: l.estado === 'activa' && (l.perpetua === 1 || (l.paga_hasta || '') >= new Date().toISOString().slice(0, 10)) });
+      // Como la API desde la 0.22.0: la clave no sale por el panel, sólo su pista.
+      const vista = ({ clave, ...l }) => ({ ...l, clave_pista: String(clave).slice(-4), activaciones: l.activaciones.filter((a) => a.activa).length, vigente: l.estado === 'activa' && (l.perpetua === 1 || (l.paga_hasta || '') >= new Date().toISOString().slice(0, 10)) });
       if (p === '/licencias' && metodo === 'GET') {
         let filas = [...licencias.values()];
         if (url.searchParams.get('tipo')) filas = filas.filter((l) => l.tipo === url.searchParams.get('tipo'));
@@ -209,7 +210,8 @@ export function apiFalsa() {
           creado_at: t, actualizado_at: t, activaciones: [], bitacora: [] };
         l.bitacora.unshift({ id: ++n, cuando: t, quien: yo.correo, accion: 'crear', detalle: JSON.stringify({ cliente: l.cliente, lugares: l.lugares }) });
         licencias.set(l.id, l);
-        return ok(vista(l), 201);
+        // Al crearla, la clave se ve UNA vez: en esta respuesta.
+        return ok({ ...vista(l), clave: l.clave }, 201);
       }
       const ml = p.match(/^\/licencias\/([^/]+)(?:\/(pago|desactivar))?$/);
       const l = ml && licencias.get(ml[1]);

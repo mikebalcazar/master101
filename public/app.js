@@ -923,6 +923,11 @@ const filtroLic = () => {
   return p.toString();
 };
 
+/* Desde la API 0.22.0 la clave T101 no se guarda en claro y el panel ya no
+ * la devuelve: sólo `clave_pista`, sus últimas cuatro letras. Se ve completa
+ * una sola vez, en la respuesta del alta. Aquí se enseña «T101-…-ABCD». */
+const pistaDeClave = (l) => l.clave || (l.clave_pista ? `T101-····-····-${l.clave_pista}` : 'sin clave');
+
 async function cargarLicencias() {
   try {
     const q = filtroLic();
@@ -939,7 +944,7 @@ async function cargarLicencias() {
       const [texto, tono] = estadoDe(l);
       return `<tr data-lic="${esc(l.id)}">
         <td>${l.correo ? esc(l.correo) : '<span class="nota">sin correo</span>'}</td>
-        <td>${esc(l.cliente)}<div class="nota mono">${esc(l.clave)}</div></td>
+        <td>${esc(l.cliente)}<div class="nota mono">${esc(pistaDeClave(l))}</div></td>
         <td>${esc(nombreTipo(l.tipo))}</td>
         <td>${esc(l.programa)}</td>
         <td class="r">${l.activaciones} de ${l.lugares}</td>
@@ -980,7 +985,7 @@ async function verLicencia(id) {
     LIC = l;
     const [texto] = estadoDe(l);
     $('ld-titulo').textContent = `${l.cliente} · ${l.programa}`;
-    $('ld-clave').textContent = l.clave;
+    $('ld-clave').textContent = pistaDeClave(l);
     $('ld-resumen').textContent = `${nombreTipo(l.tipo)} · ${texto}${l.perpetua ? '' : ` · pagada hasta ${diaLegible(l.paga_hasta)}`} · ${l.lugares} máquina${l.lugares === 1 ? '' : 's'} a la vez · plan ${l.plan}${l.correo ? ` · ${l.correo}` : ''}${l.notas ? ` · ${l.notas}` : ''}`;
     $('ld-hasta').value = l.paga_hasta || '';
     $('ld-lugares').value = l.lugares;
