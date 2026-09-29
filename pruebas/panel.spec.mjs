@@ -494,9 +494,13 @@ async function licencias(navegador) {
   const clave = (await pagina.textContent('#l-aviso')).match(/T101-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}/)[0];
   rev(true, 'se crea una perpetua de App Store y la pantalla dice la clave', clave);
   await pagina.waitForSelector('#l-detalle:not([hidden])', { timeout: 10000 });
-  rev((await pagina.textContent('#ld-clave')).trim() === clave, 'el detalle se abre solo con esa clave');
-  const fila = pagina.locator(`#l-filas tr:has(.mono:text-is("${clave}"))`);
-  rev((await fila.count()) === 1, 'la lista tiene su fila');
+  // Desde la API 0.22.0 la clave se ve UNA vez, en ese acuse; el detalle y la
+  // lista sólo enseñan su pista (las últimas cuatro letras).
+  const pista = `T101-····-····-${clave.slice(-4)}`;
+  rev((await pagina.textContent('#ld-clave')).trim() === pista, 'el detalle se abre solo, con la pista de esa clave', await pagina.textContent('#ld-clave'));
+  const fila = pagina.locator(`#l-filas tr:has(.mono:text-is("${pista}"))`);
+  rev((await fila.count()) === 1, 'la lista tiene su fila, con la pista');
+  rev(!(await pagina.textContent('#l-filas')).includes(clave), 'y la clave completa no aparece en la lista');
   const texto = await fila.textContent();
   rev(/App Store/.test(texto), 'la fila dice de qué tipo es');
   rev(/No vence/.test(texto), 'y que no vence, que es cosa aparte del tipo');
