@@ -73,7 +73,11 @@ try {
   rev(true, 'la lista de licencias carga');
 
   // La de muestra del banco: una máquina, dormida.
+  rev(/T101-····-····-DEMO/.test(await pagina.textContent('#l-filas tr[data-lic="lic-1"]')), 'la lista enseña sólo la pista de la clave (0.22.0), no la clave');
+  rev(!/T101-DEMO-DEMO-DEMO/.test(await pagina.textContent('#l-filas')), 'y la clave completa no aparece en ningún renglón');
   await pagina.click('#l-filas tr[data-lic="lic-1"] [data-ver-lic]');
+  await pagina.waitForFunction(() => /DEMO/.test(document.getElementById('ld-clave').textContent), null, { timeout: 10000 });
+  rev((await pagina.textContent('#ld-clave')) === 'T101-····-····-DEMO', 'el detalle también', await pagina.textContent('#ld-clave'));
   await pagina.waitForSelector('#l-detalle:not([hidden])', { timeout: 10000 });
   await pagina.waitForSelector('#ld-activaciones tr[data-huella]', { timeout: 10000 });
 
