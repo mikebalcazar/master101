@@ -94,6 +94,11 @@ input.pin{letter-spacing:.45em;font-size:20px;font-weight:600;text-align:center}
 .aviso{padding:12px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;border:1px solid var(--linea);background:var(--sup)}
 .aviso.bien{border-color:#BFE3CF;background:#EEF8F1;color:#1A5C2C}
 .aviso.mal{border-color:#F3D6CD;background:#FDF0EC;color:#8F3A22}
+/* Pendiente / dormida: ámbar. Una máquina que lleva un mes sin latir no es un
+   error, es una pregunta. */
+.aviso.pend{border-color:#F0DFB3;background:#FBF4E3;color:#7A5200}
+.pend{color:#7A5200;font-weight:600}
+tr[data-dormida] td{background:#FBF4E3}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]) .aviso.bien{background:#16352A;color:#BFE3CF;border-color:#2E9E6B}
   :root:not([data-theme="light"]) .aviso.mal{background:#3A2320;color:#F3D6CD;border-color:#C9694A}

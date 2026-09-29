@@ -106,6 +106,23 @@ jobs:
       - name: El «atrás» del navegador
         run: node pruebas/el-atras.mjs
 
+      # La pantalla de una licencia, contra el banco de pruebas (la API de
+      # mentiras, en memoria): UN «Guardar cambios» que manda máquinas, tipo
+      # y perpetua, el acuse que dice de cuánto a cuánto, y las máquinas
+      # dormidas marcadas. Hasta el 29-sep las rutas de licencias no estaban
+      # en el banco y esta pantalla no la medía nadie: por eso «Guardado.»
+      # mentía sin que nadie lo viera.
+      - name: Traer el navegador
+        run: npx playwright install --with-deps chromium
+      - name: La pantalla de una licencia, contra el banco
+        run: |
+          set -euo pipefail
+          node pruebas/servidor.mjs --falso 8793 &
+          BANCO=$!
+          sleep 2
+          BASE=http://127.0.0.1:8793 node pruebas/licencias.spec.mjs
+          kill $BANCO || true
+
       - name: Sellar la portada con este commit
         run: node scripts/sellar.mjs "${{ github.sha }}"
 

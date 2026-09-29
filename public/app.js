@@ -967,6 +967,12 @@ function pintarFiltroTipos(porTipo) {
   sel.value = escogido;
 }
 
+const DORMIDA_DIAS = 30;
+const dormida = (a) => {
+  const t = Date.parse(a.ultimo_latido_at || a.alta_at || '');
+  return Number.isFinite(t) && Date.now() - t > DORMIDA_DIAS * 86400000;
+};
+
 async function verLicencia(id) {
   aviso('ld-aviso', '');
   try {
@@ -983,12 +989,20 @@ async function verLicencia(id) {
     $('ld-suspender').textContent = l.estado === 'suspendida' ? 'Reanudar' : 'Suspender';
     $('ld-borrar').textContent = 'Borrar'; delete $('ld-borrar').dataset.seguro;
     const acts = l.activaciones ?? [];
-    $('ld-activaciones').innerHTML = acts.length ? acts.map((a) => `<tr data-huella="${esc(a.huella)}">
-        <td class="mono">${esc(a.huella.slice(0, 16))}…</td>
+    /* Una máquina activa que lleva más de 30 días sin latir está DORMIDA:
+     * ocupa lugar y probablemente ya nadie la usa (se formateó, se vendió,
+     * se quedó en un cajón). Se marca y se avisa; NO se libera sola: eso lo
+     * decide una persona con el botón de siempre. */
+    const dormidas = acts.filter((a) => a.activa && dormida(a));
+    aviso('ld-dormidas', dormidas.length
+      ? `${dormidas.length === 1 ? 'Una máquina lleva' : `${dormidas.length} máquinas llevan`} más de 30 días sin dar señales. ${dormidas.length === 1 ? 'Sigue ocupando' : 'Siguen ocupando'} lugar; si ya nadie la${dormidas.length === 1 ? '' : 's'} usa, libéra${dormidas.length === 1 ? 'la' : 'las'}.`
+      : '', 'pend');
+    $('ld-activaciones').innerHTML = acts.length ? acts.map((a) => `<tr data-huella="${esc(a.huella)}"${a.activa && dormida(a) ? ' data-dormida="1"' : ''}>
+        <td class="mono">${a.nombre ? `${esc(a.nombre)}<div class="nota mono">${esc(a.huella.slice(0, 16))}…</div>` : `${esc(a.huella.slice(0, 16))}…`}</td>
         <td>${a.version ? esc(a.version) : '—'}</td>
         <td class="fecha">${esc(cuando(a.alta_at))}</td>
         <td class="fecha">${esc(cuando(a.ultimo_latido_at))}</td>
-        <td>${a.activa ? '<span class="bien">activa</span>' : '<span class="nota">liberada</span>'}</td>
+        <td>${a.activa ? (dormida(a) ? '<span class="pend">dormida</span>' : '<span class="bien">activa</span>') : '<span class="nota">liberada</span>'}</td>
         <td>${a.activa ? `<button class="btn suave chico" data-liberar="${esc(a.huella)}">Liberar</button>` : ''}</td>
       </tr>`).join('') : '<tr><td colspan="6" class="nota">Ninguna máquina ha activado esta clave.</td></tr>';
     for (const btn of $('ld-activaciones').querySelectorAll('[data-liberar]')) btn.onclick = () => liberar(btn.dataset.liberar, btn);
@@ -1023,12 +1037,32 @@ for (const id of ['l-f-tipo', 'l-f-programa', 'l-f-vigentes']) $(id).onchange = 
 $('l-f-correo').onchange = cargarLicencias;
 $('l-f-correo').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); cargarLicencias(); } };
 
-$('ld-guardar-tipo').onclick = async () => {
-  const b = $('ld-guardar-tipo'); b.disabled = true;
+/* Un solo «Guardar cambios»: máquinas, tipo y perpetua en UN PATCH.
+ *
+ * Antes había dos botones para una sola forma: «Guardar tipo y vigencia»
+ * mandaba sólo `tipo` y `perpetua`, y «Cambiar máquinas» era el único que
+ * mandaba `lugares`. Mike subía el número de máquinas, picaba Guardar, le
+ * contestaba «Guardado.» —y el campo nunca viajó. Un acuse en falso es peor
+ * que un error: en la base se vio la fila tocada sin ningún campo cambiado.
+ *
+ * El acuse va DESPUÉS de recargar (verLicencia arranca limpiando ese mismo
+ * aviso) y dice de cuánto a cuánto cambió, con el número que devolvió el
+ * servidor, no el que se tecleó. «Marcar pago» sigue aparte: no es editar
+ * un campo, es asentar un pago. */
+$('ld-guardar').onclick = async () => {
+  if (!LIC) return;
+  const antes = { lugares: LIC.lugares, tipo: LIC.tipo, perpetua: !!LIC.perpetua };
+  const lugares = Number($('ld-lugares').value);
+  if (!Number.isInteger(lugares) || lugares < 1 || lugares > 100) { aviso('ld-aviso', 'Las máquinas a la vez van de 1 a 100.'); return; }
+  const b = $('ld-guardar'); b.disabled = true;
   try {
-    await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { tipo: $('ld-tipo').value, perpetua: $('ld-perpetua').checked } });
-    aviso('ld-aviso', 'Guardado.', 'bien');
+    const r = await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { lugares, tipo: $('ld-tipo').value, perpetua: $('ld-perpetua').checked } });
     await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
+    const cambios = [];
+    if (r.lugares !== antes.lugares) cambios.push(`Ahora ${r.lugares} máquina${r.lugares === 1 ? '' : 's'} a la vez (antes ${antes.lugares})`);
+    if (r.tipo !== antes.tipo) cambios.push(`tipo ${nombreTipo(r.tipo)} (antes ${nombreTipo(antes.tipo)})`);
+    if (!!r.perpetua !== antes.perpetua) cambios.push(r.perpetua ? 'ya no vence' : 'ya vence según el pago');
+    aviso('ld-aviso', cambios.length ? `${cambios.join(' · ')}.` : 'Sin cambios: quedó como estaba.', 'bien');
   } catch (e) { aviso('ld-aviso', e.message); } finally { b.disabled = false; }
 };
 
@@ -1067,18 +1101,6 @@ $('ld-pago').onclick = async () => {
   try {
     await pedir(`/licencias/${encodeURIComponent(LIC.id)}/pago`, { method: 'POST', body: { hasta } });
     aviso('ld-aviso', `Pagada hasta ${diaLegible(hasta)}. La app lo sabe en su siguiente latido.`, 'bien');
-    await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
-  } catch (e) { aviso('ld-aviso', e.message); }
-  finally { b.disabled = false; }
-};
-
-$('ld-guardar-lugares').onclick = async () => {
-  if (!LIC) return;
-  const lugares = Number($('ld-lugares').value);
-  const b = $('ld-guardar-lugares'); b.disabled = true;
-  try {
-    await pedir(`/licencias/${encodeURIComponent(LIC.id)}`, { method: 'PATCH', body: { lugares } });
-    aviso('ld-aviso', `Ahora ${lugares} máquina${lugares === 1 ? '' : 's'} a la vez.`, 'bien');
     await Promise.all([verLicencia(LIC.id), cargarLicencias()]);
   } catch (e) { aviso('ld-aviso', e.message); }
   finally { b.disabled = false; }

@@ -320,13 +320,16 @@
       </div>
       <div class="acciones">
         <button class="btn" type="button" id="ld-pago">Marcar pago</button>
-        <button class="btn suave" type="button" id="ld-guardar-tipo">Guardar tipo y vigencia</button>
-        <button class="btn suave" type="button" id="ld-guardar-lugares">Cambiar máquinas</button>
+        <!-- Un solo «Guardar cambios» para máquinas, tipo y perpetua. Antes
+             había dos botones para una sola forma y el de «Guardar» no
+             mandaba las máquinas: decía «Guardado.» y el campo nunca viajó. -->
+        <button class="btn suave" type="button" id="ld-guardar">Guardar cambios</button>
         <button class="btn suave" type="button" id="ld-suspender">Suspender</button>
         <button class="btn peligro chico" type="button" id="ld-borrar">Borrar</button>
       </div>
     </div>
     <h2 class="h2">Máquinas</h2>
+    <div class="aviso" id="ld-dormidas" hidden></div>
     <div class="tabla"><table>
       <thead><tr><th>Huella</th><th>Versión</th><th>Alta</th><th>Último latido</th><th>Estado</th><th></th></tr></thead>
       <tbody id="ld-activaciones"></tbody>
