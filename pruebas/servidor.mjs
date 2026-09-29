@@ -57,6 +57,16 @@ export function apiFalsa() {
   const supers = new Set(['u-duena']);
   const boletos = new Map();   // boleto de Google → cookie de sesión, un solo uso
   const bitacora = [];   // contrato 0.5.0: la escribe la API sola
+  /* Licencias (0.13.0): una de muestra con una máquina DORMIDA —75 días sin
+   * latir— para que la pantalla tenga qué marcar. La huella es un azar,
+   * como en la API. */
+  const hace = (d) => new Date(Date.now() - d * 86400000).toISOString();
+  const licencias = new Map([['lic-1', {
+    id: 'lic-1', clave: 'T101-DEMO-DEMO-DEMO', programa: 'draw101', cliente: 'Taller de muestra', correo: 'owner@demo.mx', plan: 'mensual',
+    lugares: 1, estado: 'activa', origen: 'manual', tipo: 'cortesia', perpetua: 1, paga_hasta: null, notas: null, creado_at: hace(120), actualizado_at: hace(120),
+    activaciones: [{ id: 'a-1', huella: 'maquina-dormida-0123456789ab', version: '0.20.20', alta_at: hace(120), ultimo_latido_at: hace(75), activa: 1, nombre: 'TALLER-PC', sistema: 'windows' }],
+    bitacora: [{ id: 1, cuando: hace(120), quien: 'duena@ejemplo.mx', accion: 'crear', detalle: JSON.stringify({ cliente: 'Taller de muestra', lugares: 1 }) }],
+  }]]);
   let nb = 0;
   const apunta = (quien, org_id, campo, antes, despues) => bitacora.unshift({ id: ++nb, cuando: new Date().toISOString(), quien, org_id, campo, antes: antes ?? null, despues: despues ?? null });
   const entradas = new Map();   // usuario_id → última sesión abierta (ISO), como `sesiones.creado_at`
@@ -148,6 +158,93 @@ export function apiFalsa() {
       if (!o.activa) return err('org_inactiva', 403);
       if (LLAVE[app] && o.apps[LLAVE[app]] !== true) return err('app_inactiva', 403, { app });
       return ok({ org: o.id, ruta: m[2] || '/' });
+    }
+
+    /* ─── licencias (0.13.0+), lo justo para medir la pantalla de master101 ───
+     * Las mismas rutas y formas que `suite101-api/src/rutas/licencias.ts`:
+     * la lista con filtros y `por_tipo`, crear, detalle con activaciones y
+     * bitácora, PATCH de varios campos en UNA llamada (que es lo que la
+     * pantalla tiene que mandar), pago, desactivar, borrar, y `activar` sin
+     * sesión, que es como lo hace la app. Hasta el 28-sep no estaban aquí, y
+     * por eso el defecto del «Guardado.» en falso no lo medía nadie. */
+    if (p === '/licencias/activar' && metodo === 'POST') {
+      const s = [...licencias.values()].find((l) => l.clave === String(cuerpo.clave || '').toUpperCase());
+      if (!s) return err('clave_inexistente', 404);
+      if (s.estado === 'suspendida') return err('suspendida', 403);
+      const activas = s.activaciones.filter((a) => a.activa);
+      const ya = s.activaciones.find((a) => a.huella === cuerpo.huella);
+      if (!ya && activas.length >= s.lugares) return err('sin_lugares', 409, { lugares: s.lugares, ocupados: activas.length });
+      const t = new Date().toISOString();
+      if (ya) { ya.activa = 1; ya.ultimo_latido_at = t; } else s.activaciones.push({ id: `a-${++n}`, huella: cuerpo.huella, version: cuerpo.version ?? null, alta_at: t, ultimo_latido_at: t, activa: 1, nombre: cuerpo.nombre ?? null, sistema: cuerpo.sistema ?? null });
+      s.bitacora.unshift({ id: ++n, cuando: t, quien: 'app', accion: 'activar', detalle: JSON.stringify({ huella: cuerpo.huella, version: cuerpo.version ?? null }) });
+      return ok({ token: `v1.falso.${s.id}`, hasta: '2099-01-01', licencia: { id: s.id, programa: s.programa, lugares: s.lugares, perpetua: s.perpetua === 1 } }, ya ? 200 : 201);
+    }
+    if (p === '/licencias/latido' && metodo === 'POST') {
+      const s = [...licencias.values()].find((l) => `v1.falso.${l.id}` === cuerpo.token);
+      const a = s?.activaciones.find((x) => x.huella === cuerpo.huella && x.activa);
+      if (!a) return err('maquina_desconocida', 403);
+      a.ultimo_latido_at = new Date().toISOString();
+      return ok({ token: cuerpo.token, hasta: '2099-01-01' });
+    }
+    if (p === '/licencias' || p.startsWith('/licencias/')) {
+      if (!superadmin) return err('sin_permiso', 403);
+      const vista = (l) => ({ ...l, activaciones: l.activaciones.filter((a) => a.activa).length, vigente: l.estado === 'activa' && (l.perpetua === 1 || (l.paga_hasta || '') >= new Date().toISOString().slice(0, 10)) });
+      if (p === '/licencias' && metodo === 'GET') {
+        let filas = [...licencias.values()];
+        if (url.searchParams.get('tipo')) filas = filas.filter((l) => l.tipo === url.searchParams.get('tipo'));
+        if (url.searchParams.get('programa')) filas = filas.filter((l) => l.programa === url.searchParams.get('programa'));
+        if (url.searchParams.get('correo')) filas = filas.filter((l) => l.correo === url.searchParams.get('correo').toLowerCase());
+        let salida = filas.map(vista);
+        if (url.searchParams.get('vigentes') === '1') salida = salida.filter((l) => l.vigente);
+        const por_tipo = { cortesia: 0, suite101: 0, stripe: 0, appstore: 0 };
+        for (const l of licencias.values()) por_tipo[l.tipo] = (por_tipo[l.tipo] || 0) + 1;
+        return ok({ total: salida.length, filas: salida, por_tipo });
+      }
+      if (p === '/licencias' && metodo === 'POST') {
+        if (!cuerpo.cliente) return err('datos_invalidos', 400, { falta: 'cliente' });
+        const t = new Date().toISOString();
+        const azar = () => Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+        const l = { id: `lic-${++n}`, clave: `T101-${azar()}-${azar()}-${azar()}`, programa: cuerpo.programa || 'draw101', cliente: cuerpo.cliente, correo: cuerpo.correo ?? null, plan: 'mensual',
+          lugares: Number(cuerpo.lugares) || 1, estado: 'activa', origen: 'manual', tipo: cuerpo.tipo || 'cortesia', perpetua: cuerpo.perpetua ? 1 : 0, paga_hasta: cuerpo.paga_hasta ?? null, notas: cuerpo.notas ?? null,
+          creado_at: t, actualizado_at: t, activaciones: [], bitacora: [] };
+        l.bitacora.unshift({ id: ++n, cuando: t, quien: yo.correo, accion: 'crear', detalle: JSON.stringify({ cliente: l.cliente, lugares: l.lugares }) });
+        licencias.set(l.id, l);
+        return ok(vista(l), 201);
+      }
+      const ml = p.match(/^\/licencias\/([^/]+)(?:\/(pago|desactivar))?$/);
+      const l = ml && licencias.get(ml[1]);
+      if (!l) return err('licencia_desconocida', 404);
+      const t = new Date().toISOString();
+      if (!ml[2] && metodo === 'GET') return ok({ ...vista(l), activaciones: l.activaciones, bitacora: l.bitacora });
+      if (!ml[2] && metodo === 'PATCH') {
+        const cambios = {};
+        if (cuerpo.lugares !== undefined) { const v = Number(cuerpo.lugares); if (!Number.isInteger(v) || v < 1 || v > 100) return err('datos_invalidos', 400, { campo: 'lugares' }); cambios.lugares = v; }
+        if (cuerpo.tipo !== undefined) { if (!['cortesia', 'suite101', 'stripe', 'appstore'].includes(cuerpo.tipo)) return err('datos_invalidos', 400, { campo: 'tipo' }); cambios.tipo = cuerpo.tipo; }
+        if (cuerpo.perpetua !== undefined) cambios.perpetua = cuerpo.perpetua ? 1 : 0;
+        if (cuerpo.estado !== undefined) { if (!['activa', 'suspendida'].includes(cuerpo.estado)) return err('datos_invalidos', 400, { campo: 'estado' }); cambios.estado = cuerpo.estado; }
+        if (cuerpo.paga_hasta !== undefined) cambios.paga_hasta = cuerpo.paga_hasta || null;
+        if (cuerpo.notas !== undefined) cambios.notas = cuerpo.notas;
+        if (!Object.keys(cambios).length) return err('datos_invalidos', 400, { motivo: 'nada que cambiar' });
+        for (const [k, v] of Object.entries(cambios)) {
+          if (l[k] !== v) l.bitacora.unshift({ id: ++n, cuando: t, quien: yo.correo, accion: 'cambiar', detalle: JSON.stringify({ campo: k, antes: l[k], despues: v }) });
+          l[k] = v;
+        }
+        l.actualizado_at = t;
+        return ok(vista(l));
+      }
+      if (!ml[2] && metodo === 'DELETE') { licencias.delete(l.id); return ok({ borrada: true }); }
+      if (ml[2] === 'pago' && metodo === 'POST') {
+        l.bitacora.unshift({ id: ++n, cuando: t, quien: yo.correo, accion: 'pago', detalle: JSON.stringify({ antes: l.paga_hasta, hasta: cuerpo.hasta }) });
+        l.paga_hasta = cuerpo.hasta; return ok(vista(l));
+      }
+      if (ml[2] === 'desactivar' && metodo === 'POST') {
+        const a = l.activaciones.find((x) => x.huella === cuerpo.huella);
+        if (!a) return err('maquina_desconocida', 404);
+        a.activa = 0;
+        l.bitacora.unshift({ id: ++n, cuando: t, quien: yo.correo, accion: 'desactivar', detalle: JSON.stringify({ huella: cuerpo.huella }) });
+        return ok(vista(l));
+      }
+      return err('no_encontrado', 404);
     }
 
     if (!p.startsWith('/admin')) return err('no_encontrado', 404);
