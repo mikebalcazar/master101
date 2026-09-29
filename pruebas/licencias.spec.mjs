@@ -20,7 +20,12 @@
 import { chromium } from 'playwright';
 
 const BASE = (process.env.BASE || 'http://127.0.0.1:8793').replace(/\/$/, '');
-const SUPER = process.env.CORREO_SUPERADMIN || 'duena@ejemplo.mx';
+// Contra el banco falso la superadmin es siempre la dueña que el banco tiene
+// sembrada; CORREO_SUPERADMIN es para staging. El 29-sep el flujo de
+// publicación traía mike@forespot.com en el ambiente del job entero, el
+// banco no lo conocía, no devolvía código y la prueba reventaba con un
+// «expected string, got undefined» que no decía por qué.
+const DUENA_DEL_BANCO = 'duena@ejemplo.mx';
 const EJECUTABLE = process.env.CHROMIUM || undefined;
 
 let fallas = 0, revisadas = 0;
@@ -34,6 +39,8 @@ if (!salud?.data?.entorno || salud.data.entorno === 'produccion') {
   console.log(`El entorno es «${salud?.data?.entorno}»: esta prueba sólo corre contra el banco de pruebas o staging.`);
   process.exit(1);
 }
+const BANCO_FALSO = salud.data.version === 'falsa';
+const SUPER = BANCO_FALSO ? DUENA_DEL_BANCO : (process.env.CORREO_SUPERADMIN || DUENA_DEL_BANCO);
 
 const navegador = await chromium.launch({ executablePath: EJECUTABLE });
 const ctx = await navegador.newContext({ viewport: { width: 1440, height: 900 }, locale: 'es-MX' });
@@ -55,6 +62,7 @@ try {
     pagina.click('#olvide'),
   ]);
   const codigo = (await resp.json())?.data?.codigo_prueba;
+  if (!codigo) throw new Error(`el servidor no devolvió código de prueba para ${SUPER}: ¿esa cuenta existe ahí?`);
   await pagina.waitForSelector('#v-codigo:not([hidden])', { timeout: 15000 });
   await pagina.fill('#codigo', codigo);
   await pagina.click('#b-codigo');
