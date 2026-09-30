@@ -1,3 +1,5 @@
 node_modules/
 .wrangler/
 pruebas/salida/
+# la deja el flujo al publicar (version-nueva.js la compara)
+public/huella.txt

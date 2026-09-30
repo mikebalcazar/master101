@@ -167,3 +167,8 @@ td .quien{font-size:12.5px;color:var(--tinta-3)}
 /* «o con tu cuenta de Google»: una raya a cada lado del texto */
 .o-bien{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--tinta-3, #667)}
 .o-bien::before,.o-bien::after{content:"";flex:1;height:1px;background:rgba(0,0,0,.12)}
+
+/* El letrero de versión nueva (30-sep-2026): abajo, encima de todo, con un
+   botón para recargar cuando la persona termine lo que traía. */
+#aviso-version { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 5000; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; background: #1d1f20; color: #fff; font-size: 13px; line-height: 1.35; box-shadow: 0 8px 24px rgba(0,0,0,.3); max-width: calc(100vw - 32px); }
+#aviso-version button { border: 0; border-radius: 4px; padding: 6px 12px; background: #C6FF3D; color: #1d1f20; font-weight: 700; cursor: pointer; font: inherit; font-weight: 700; white-space: nowrap; }

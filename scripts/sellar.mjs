@@ -24,4 +24,7 @@ if (!marca.test(antes)) {
   process.exit(1);
 }
 await writeFile(PORTADA, antes.replace(marca, `$1${version}$3`));
+/* La huella pública que compara version-nueva.js (30-sep-2026): el mismo
+ * commit, en un archivo aparte que se pide sin caché cada 2 minutos. */
+await writeFile(new URL('../public/huella.txt', import.meta.url), version + '\n');
 console.log(`portada sellada con la versión ${version}`);
