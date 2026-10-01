@@ -231,7 +231,7 @@ $('olvide').onclick = async () => {
     mostrar('v-codigo');
     pintarCodigo();
   } catch (e) { $('err-clave').textContent = e.message; }
-  finally { b.disabled = false; b.textContent = 'Olvidé mi contraseña'; }
+  finally { b.disabled = false; b.textContent = 'No tengo contraseña o la olvidé'; }
 };
 
 $('f-codigo').onsubmit = async (ev) => {
