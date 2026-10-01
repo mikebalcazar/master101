@@ -62,7 +62,7 @@ console.log('\n· qué se ofrece para entrar');
 rev(/body: \{ correo, clave: v \}/.test(js), 'entra con correo y contraseña');
 rev(/body: \{ correo, codigo: v \}/.test(js), 'y con el código, que es la recuperación');
 rev(/auth\/google/.test(js), 'y Google sigue ahí');
-rev(/Olvid[ée] mi contrase/i.test(htmlSinComentarios), 'la pantalla ofrece «Olvidé mi contraseña»');
+rev(/No tengo contraseña o la olvidé/.test(htmlSinComentarios), 'la pantalla ofrece «No tengo contraseña o la olvidé» (Mike, 1-oct-2026: quien nunca tuvo una tiene que verlo como suyo)');
 rev(/type="password"/.test(htmlSinComentarios), 'y tiene campo de contraseña');
 rev(/name="password"/.test(htmlSinComentarios) && /name="new-password"/.test(htmlSinComentarios),
   'con nombre, para que el administrador del teléfono la guarde');
