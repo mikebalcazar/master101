@@ -296,22 +296,20 @@ async function recorrido(navegador) {
   await pagina.click(`#e-filas [data-gente="${ORG}"]`);
   await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 10000 });
 
-  /* ── lo de quote101 por negocio (0.45.0) ──
-   * Mike, 23-sep: «desapareció mi info de quote». Lo que esta pantalla tiene
-   * que dejar claro sin leer la API: que hay cotizaciones colgadas de un
-   * negocio que ya no existe, cuántas, y de cuándo es la última. */
+  /* ── lo de quote101 de la empresa (0.63.0) ──
+   * Ya no hay negocios (Mike, 1-oct): la API contesta un resumen de la
+   * empresa, y la pantalla lo dice en un renglón, sin la palabra negocio. */
   await pagina.waitForFunction(() => !/Cargando/.test(document.querySelector('#g-quote')?.innerText ?? 'Cargando'), null, { timeout: 10000 }).catch(() => {});
   const quote = await pagina.locator('#g-quote').innerText();
   if (/No se pudo leer lo de quote101/.test(quote) && !/127\.0\.0\.1/.test(BASE)) {
     // Contra staging, la empresa de prueba recién creada no tiene nada de quote: basta con que conteste.
     rev(false, 'el bloque de quote101 contesta', quote);
   } else if (/127\.0\.0\.1/.test(BASE)) {
-    rev(/Un negocio que ya no existe/.test(quote), 'lo huérfano sale marcado, no escondido', quote.split('\n')[0]);
-    rev(/91 cotizaciones/.test(quote), 'con cuántas cotizaciones tiene');
-    rev(/Forespot Muebles/.test(quote) && /3 cotizaciones/.test(quote), 'y los negocios vivos con lo suyo');
-    rev(quote.indexOf('ya no existe') < quote.indexOf('Forespot Muebles'), 'los huérfanos primero: son lo que se viene a buscar');
+    rev(/2 clientes, 1 proyecto, 3 cotizaciones/.test(quote), 'el resumen de la empresa, en un renglón', quote.split('\n')[0]);
+    rev(/la última/.test(quote), 'con la fecha de la última cotización');
+    rev(!/[Nn]egocio/.test(quote), 'y sin la palabra negocio');
   } else {
-    rev(/cotizaci/.test(quote) || /no tiene negocios/.test(quote) || /Ni un cliente|ni una cotizaci/i.test(quote), 'el bloque de quote101 contesta', quote.split('\n')[0]);
+    rev(/cotizaci/i.test(quote), 'el bloque de quote101 contesta', quote.split('\n')[0]);
   }
 
   /* ── el «atrás» del navegador (Mike, 22-sep-2026) ──
