@@ -595,29 +595,25 @@ async function cargarQuell(id) {
     $('g-quell').textContent = quellLegible(d.filas || {});
   } catch (e) { $('g-quell').textContent = `No se pudo leer lo de quell101: ${e.message}`; }
 }
-/* ─────────────── quote101 dentro de la empresa, POR NEGOCIO (0.45.0) ───────────────
- * Nació de «desapareció mi info de quote» (Mike, 23-sep). Las cotizaciones
- * son de un negocio, y un negocio borrado dejaba las suyas apuntando a nada:
- * invisibles desde quote101 aunque sigan en la base. Aquí se ven los dos
- * casos —los negocios que existen y los que ya no—, con los huérfanos
- * primero porque son lo que se viene a buscar. Sólo lee. */
-function renglonQuote(n) {
-  const cuenta = `${n.clientes} cliente${n.clientes === 1 ? '' : 's'}, ${n.proyectos} proyecto${n.proyectos === 1 ? '' : 's'}, ${n.cotizaciones} cotizaci${n.cotizaciones === 1 ? 'ón' : 'ones'}`;
-  const ultima = n.ultima_cotizacion ? ` · la última, ${cuando(n.ultima_cotizacion)}` : '';
-  if (!n.existe) {
-    const id = n.negocio_id ? ` (${esc(n.negocio_id)})` : ' (sin negocio)';
-    return `<li class="aviso mal" style="list-style:none">⚠ <b>Un negocio que ya no existe</b>${id}: ${cuenta}${ultima}. Esto no lo ve ninguna app.</li>`;
-  }
-  return `<li><b>${esc(n.nombre)}</b>: ${cuenta}${ultima}.</li>`;
+/* ─────────────── quote101 dentro de la empresa (0.63.0) ───────────────
+ * Hasta el 1-oct-2026 esto era «por negocio» (nació de «desapareció mi info
+ * de quote», 23-sep: cotizaciones colgadas de un negocio borrado). Mike quitó
+ * el concepto de negocio de toda la suite: la empresa es una, y la API
+ * contesta un solo resumen. Sólo lee. */
+function renglonQuote(r) {
+  const n = (c, uno, varios) => `${c} ${c === 1 ? uno : varios}`;
+  const cuenta = `${n(r.clientes, 'cliente', 'clientes')}, ${n(r.proyectos, 'proyecto', 'proyectos')}, ${n(r.cotizaciones, 'cotización', 'cotizaciones')}`;
+  const ultima = r.ultima_cotizacion ? ` · la última, ${cuando(r.ultima_cotizacion)}` : '';
+  return `<li>${cuenta}${ultima}.</li>`;
 }
 async function cargarQuote(id) {
   try {
     const d = await pedir(`/admin/orgs/${encodeURIComponent(id)}/quote`);
-    const negocios = d.negocios || [];
-    const algo = negocios.some((n) => n.clientes || n.proyectos || n.cotizaciones);
-    $('g-quote').innerHTML = !negocios.length
-      ? '<li>La empresa no tiene negocios todavía.</li>'
-      : negocios.map(renglonQuote).join('') + (algo ? '' : '<li><b>No hay ni un cliente ni una cotización de quote101 en ningún negocio.</b></li>');
+    const r = d.resumen || { clientes: 0, proyectos: 0, cotizaciones: 0, ultima_cotizacion: null };
+    const algo = r.clientes || r.proyectos || r.cotizaciones;
+    $('g-quote').innerHTML = algo
+      ? renglonQuote(r)
+      : '<li><b>No hay ni un cliente ni una cotización de quote101 en esta empresa.</b></li>';
   } catch (e) { $('g-quote').innerHTML = `<li>No se pudo leer lo de quote101: ${esc(e.message)}</li>`; }
 }
 /* ─────────────── roster101 dentro de la empresa (0.17.0) ─────────────── */
