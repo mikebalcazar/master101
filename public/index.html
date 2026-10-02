@@ -139,6 +139,9 @@
       <label for="a-moneda">Moneda<select id="a-moneda"><option value="MXN" selected>MXN · pesos</option><option value="USD">USD · dólares</option></select></label>
       <label for="a-plan">Plan <span class="opc">(etiqueta, por ahora)</span><input id="a-plan" placeholder="básico"></label>
     </div>
+    <div class="dos">
+      <label for="a-dominio">Dominio propio <span class="opc">(opcional)</span><input id="a-dominio" autocapitalize="off" spellcheck="false" inputmode="url" placeholder="acme.com"><span class="pista">Sus apps abrirán en dash101.acme.com, quell101.acme.com, roster101.acme.com… La empresa tiene que apuntar ocho CNAME; las instrucciones salen en su ficha. Se puede poner después.</span></label>
+    </div>
     <fieldset class="apps-ini">
       <legend>Cobro</legend>
       <label><input type="checkbox" id="a-cortesia" checked> Cortesía: no vence nunca (para nosotros o para regalar)</label>
@@ -182,6 +185,25 @@
     </div>
     <div class="err" id="err-cobro"></div>
   </form>
+
+  <h2 class="h2">Dominio propio</h2>
+  <p class="nota" id="g-dominio-nota">Cargando…</p>
+  <form class="forma" id="f-dominio" novalidate>
+    <div class="tres">
+      <label for="g-dominio">Dominio de la empresa<input id="g-dominio" autocapitalize="off" spellcheck="false" inputmode="url" placeholder="acme.com"><span class="pista">Sin «www» ni «https://». Sus apps abrirán en dash101.acme.com, quell101.acme.com, roster101.acme.com, suite101.acme.com…</span></label>
+      <label>&nbsp;<button class="btn" type="submit" id="b-dominio">Guardar dominio</button></label>
+      <label>&nbsp;<button class="btn suave" type="button" id="g-dominio-quitar" hidden>Quitar el dominio</button></label>
+    </div>
+    <div class="err" id="err-dominio"></div>
+  </form>
+  <div id="g-dominio-nombres" hidden>
+    <table class="tabla">
+      <thead><tr><th>Nombre</th><th>Estado</th><th>Detalle</th></tr></thead>
+      <tbody id="g-dominio-filas"></tbody>
+    </table>
+    <p class="nota" id="g-dominio-dns"></p>
+    <div class="acciones"><button class="btn suave" type="button" id="g-dominio-copiar">Copiar las instrucciones para la empresa</button><button class="btn suave" type="button" id="g-dominio-refrescar">Volver a revisar</button></div>
+  </div>
 
   <h2 class="h2">Datos de la empresa y del director</h2>
   <form class="forma" id="f-datos" novalidate>
