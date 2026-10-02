@@ -80,7 +80,7 @@ function cuando(iso) {
 }
 
 /** Cómo se lee un renglón de la bitácora del panel. */
-const CAMPOS = { creada: 'Se creó la empresa', nombre: 'Nombre', plan: 'Plan', moneda: 'Moneda', activa: 'Activa', miembro: 'Gente', superadmin: 'Superadmin', pago: 'Pago', cortesia: 'Cortesía', paga_hasta: 'Pagada hasta', bienvenida: 'Bienvenida', razon_social: 'Razón social', rfc: 'RFC', telefono: 'Teléfono', director_correo: 'Correo del director', director_nombre: 'Nombre del director', director_telefono: 'Teléfono del director' };
+const CAMPOS = { creada: 'Se creó la empresa', dominio: 'Dominio propio', nombre: 'Nombre', plan: 'Plan', moneda: 'Moneda', activa: 'Activa', miembro: 'Gente', superadmin: 'Superadmin', pago: 'Pago', cortesia: 'Cortesía', paga_hasta: 'Pagada hasta', bienvenida: 'Bienvenida', razon_social: 'Razón social', rfc: 'RFC', telefono: 'Teléfono', director_correo: 'Correo del director', director_nombre: 'Nombre del director', director_telefono: 'Teléfono del director' };
 function campoLegible(campo) {
   if (campo.startsWith('apps.')) { const k = campo.slice(5); const app = APPS.find(([a]) => a === k); return `App ${app ? app[1] : k}`; }
   return CAMPOS[campo] || campo;
@@ -537,6 +537,10 @@ $('f-alta').onsubmit = async (ev) => {
       razon_social: $('a-razon').value.trim() || undefined, rfc: $('a-rfc').value.trim().toUpperCase() || undefined, telefono: $('a-telefono').value.trim() || undefined,
       director: { correo: dueno, nombre: $('a-dueno-nombre').value.trim() || undefined, telefono: $('a-dueno-telefono').value.trim() || undefined },
       cortesia, paga_hasta: cortesia ? null : hasta,
+      // 2-oct · el dominio propio, de una vez (Mike: «cuando abra una nueva
+      // empresa, quiero poder poner su dominio»). Si falla, la empresa queda
+      // creada y la API lo dice en dominio_aviso.
+      dominio: $('a-dominio').value.trim() || undefined,
     } });
     const miembro = creada.director;
 
@@ -545,6 +549,8 @@ $('f-alta').onsubmit = async (ev) => {
     $('f-alta').hidden = true;
     $('a-listo').innerHTML = `<b>${esc(org.nombre)}</b> (<span class="mono">${esc(org.id)}</span>) quedó creada, con su base en la versión ${esc(creada.org_db_version)}.<br>`
       + (prendidas.length ? `Apps prendidas: ${esc(prendidas.join(', '))}.` : 'Ninguna app prendida todavía.') + ` Cobro: ${esc(cobroCorto(org))}.<br>`
+      + (org.dominio ? `Dominio propio: <b>${esc(org.dominio)}</b>; las instrucciones para su DNS están en su ficha.<br>` : '')
+      + (creada.dominio_aviso ? `<span style="color:var(--alerta)">El dominio no quedó: ${esc(creada.dominio_aviso)}. Se puede poner después desde su ficha.</span><br>` : '')
       + (miembro
         ? `Su director entra con <b>${esc(miembro.correo)}</b> (rol ${esc(ROLES[miembro.rol] || miembro.rol)}): le llega un código a ese correo en su panel o en cualquiera de sus apps. ${esc(bienvenidaLegible(creada.bienvenida))}`
         : `<span style="color:var(--alerta)">La empresa se creó sin director. Agrégalo desde «Gente».</span>`)
@@ -653,7 +659,94 @@ function tomaOrg(org) {
   ORG = org;
   reemplaza(org);
   pintarCobro();
+  pintarDominio();
 }
+
+/* ─────────────── el dominio propio (2-oct) ───────────────
+ *
+ * Mike: «poder poner su dominio en la plataforma (desde master101) y que al
+ * abrirla les abra sus portales personalizados». La API da de alta los ocho
+ * nombres en Cloudflare; aquí se enseña en qué está cada uno y lo que la
+ * empresa tiene que poner en su DNS (DOMINIOS.md de la API). */
+const ESTADO_NOMBRE = { pendiente: 'Esperando el CNAME de la empresa', activo: 'Activo', error: 'Con problema' };
+let DOMINIO_INSTRUCCIONES = '';
+
+function pintarDominio() {
+  const o = ORG;
+  $('g-dominio').value = o.dominio || '';
+  $('g-dominio-quitar').hidden = !o.dominio;
+  $('g-dominio-nota').textContent = o.dominio
+    ? `Sus apps abren en dash101.${o.dominio}, quell101.${o.dominio}, roster101.${o.dominio}… y la puerta de la suite en suite101.${o.dominio}.`
+    : 'Sin dominio propio: la empresa entra por las direcciones de taller101.com.';
+  $('g-dominio-nombres').hidden = true;
+  if (o.dominio) cargarDominio(o.id).catch((e) => { $('err-dominio').textContent = e.message; });
+}
+
+async function cargarDominio(id) {
+  const d = await pedir(`/admin/orgs/${encodeURIComponent(id)}/dominio`);
+  if (!ORG || ORG.id !== id) return;
+  const nombres = d.nombres || [];
+  $('g-dominio-filas').innerHTML = nombres.map((n) => `<tr>
+    <td class="mono">${esc(n.hostname)}</td>
+    <td>${n.estado === 'activo' ? '✓ ' : n.estado === 'error' ? '✕ ' : '… '}${esc(ESTADO_NOMBRE[n.estado] || n.estado)}</td>
+    <td>${esc(n.detalle || (n.ssl ? `certificado: ${n.ssl}` : ''))}</td></tr>`).join('') || '<tr><td colspan="3">Sin nombres dados de alta.</td></tr>';
+  DOMINIO_INSTRUCCIONES = [
+    `Dominio propio de ${ORG.nombre} en la suite 101`,
+    '',
+    `En el DNS de ${d.dominio}, agregar estos registros CNAME (uno por programa), todos apuntando a ${d.respaldo}:`,
+    '',
+    ...(d.instrucciones || []),
+    '',
+    'En cuanto estén, el certificado se emite solo y las direcciones abren con candado.',
+  ].join('\n');
+  const activos = d.activos ?? nombres.filter((n) => n.estado === 'activo').length;
+  $('g-dominio-dns').textContent = !d.configurado
+    ? 'La API no tiene el token de Cloudflare: los nombres no se pueden dar de alta hasta que se ponga (DOMINIOS.md).'
+    : activos === nombres.length && nombres.length
+      ? `Los ${nombres.length} nombres están activos.`
+      : `${activos} de ${nombres.length} activos. Los demás esperan que la empresa apunte su CNAME a ${d.respaldo}.`;
+  $('g-dominio-nombres').hidden = false;
+}
+
+$('f-dominio').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const dominio = $('g-dominio').value.trim().toLowerCase();
+  if (!dominio) { $('err-dominio').textContent = 'Escribe el dominio de la empresa (acme.com).'; return; }
+  const b = $('b-dominio'); b.disabled = true; $('err-dominio').textContent = '';
+  try {
+    tomaOrg(await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}`, { method: 'PATCH', body: { dominio } }));
+    aviso('g-aviso', `Dominio guardado: ${ORG.dominio}. Sus ocho nombres quedaron dados de alta; falta que la empresa ponga sus CNAME.`, 'bien');
+    await cargarBitacoraDe(ORG.id);
+  } catch (e) {
+    const d = e.detalle || {};
+    $('err-dominio').textContent = e.error === 'dominio_en_uso' ? `Ese dominio ya es de la empresa «${d.empresa}».`
+      : e.error === 'dominio_no_configurado' ? 'La API no tiene el token de Cloudflare todavía (DOMINIOS.md): el dominio no se puede dar de alta.'
+      : d.dominio ? `El dominio no sirve: ${d.dominio}.` : e.message;
+  } finally { b.disabled = false; }
+};
+
+$('g-dominio-quitar').onclick = async () => {
+  if (!window.confirm(`¿Quitar el dominio ${ORG.dominio}? Sus direcciones dejarán de abrir; la empresa seguirá entrando por taller101.com.`)) return;
+  const b = $('g-dominio-quitar'); b.disabled = true; $('err-dominio').textContent = '';
+  try {
+    const r = await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/dominio`, { method: 'DELETE' });
+    tomaOrg(r.org);
+    aviso('g-aviso', 'Dominio quitado.', 'bien');
+    await cargarBitacoraDe(ORG.id);
+  } catch (e) { $('err-dominio').textContent = e.message; }
+  finally { b.disabled = false; }
+};
+
+$('g-dominio-refrescar').onclick = () => { $('err-dominio').textContent = ''; cargarDominio(ORG.id).catch((e) => { $('err-dominio').textContent = e.message; }); };
+
+$('g-dominio-copiar').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(DOMINIO_INSTRUCCIONES);
+    aviso('g-aviso', 'Instrucciones copiadas: pégalas en un correo a la empresa.', 'bien');
+  } catch {
+    window.prompt('Copia las instrucciones:', DOMINIO_INSTRUCCIONES);
+  }
+};
 
 $('f-cobro').onsubmit = async (ev) => {
   ev.preventDefault();
