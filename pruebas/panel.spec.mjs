@@ -453,6 +453,7 @@ async function escritorio(navegador) {
   rev(columnas.length > 0 && JSON.stringify(columnas) === JSON.stringify(enElRenglon),
       'el encabezado y las casillas de cada renglón hablan de las mismas apps', `${JSON.stringify(columnas)} vs ${JSON.stringify(enElRenglon)}`);
   rev(columnas.includes('supply'), 'y supply101 tiene su columna (21-sep: dejó de colgar de dash101)');
+  rev(columnas.includes('cost'), 'y cost101 tiene su columna (7-oct: app con licencia por empresa)');
   rev((await pagina.locator('#e-tabla thead th').count()) === columnas.length + 6,
       'y seis más: empresa, plan, gente, última entrada, estado y acciones');
   rev((await pagina.locator(`#e-filas tr[data-org="${ORG}"] input[data-app]`).count()) === columnas.length,

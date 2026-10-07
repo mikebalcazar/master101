@@ -24,11 +24,14 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
  *  `supply` se agregó el 21-sep-2026. Va junto a `dash` porque supply101 es
  *  la cara de empleado del mismo módulo de órdenes y no se cobra aparte: a
  *  una empresa se le prenden las dos. Lo que se reparte persona por persona
- *  —y ahí sí por separado— se hace en workshop101. */
+ *  —y ahí sí por separado— se hace en workshop101.
+ *
+ *  `cost` (cost101, costos de obra) se agregó el 7-oct-2026. Es una app con
+ *  licencia propia: una empresa nueva NO nace con ella; se prende aquí. */
 export const APPS = [
   ['dash', 'dash101'], ['supply', 'supply101'],
   ['quell', 'quell101'], ['peek', 'peek101'],
-  ['cotizador', 'quote101'], ['roster', 'roster101'], ['nest', 'nest101'],
+  ['cotizador', 'quote101'], ['cost', 'cost101'], ['roster', 'roster101'], ['nest', 'nest101'],
 ];
 
 const ROLES = { owner: 'dueño', admin: 'administración', socio: 'socio', staff: 'oficina' };
