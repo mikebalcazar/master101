@@ -448,12 +448,16 @@ async function escritorio(navegador) {
    * línea sin que nada estuviera mal, y al siguiente que agregue una app le
    * pasaría lo mismo. Lo que de verdad importa es que el encabezado y las
    * casillas de cada renglón digan lo mismo, y que no sobre ni falte una. */
-  const columnas = await pagina.locator('#e-tabla thead th.app').evaluateAll((l) => l.map((t) => t.textContent.trim()));
+  /* La llave va en `data-app` del encabezado: el texto es lo que se ve, y
+   * patron101 se ve «patron» aunque su llave sea `investor` (8-oct). */
+  const columnas = await pagina.locator('#e-tabla thead th.app').evaluateAll((l) => l.map((t) => t.dataset.app));
   const enElRenglon = await pagina.locator('#e-filas tr').first().locator('td.app input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app));
   rev(columnas.length > 0 && JSON.stringify(columnas) === JSON.stringify(enElRenglon),
       'el encabezado y las casillas de cada renglón hablan de las mismas apps', `${JSON.stringify(columnas)} vs ${JSON.stringify(enElRenglon)}`);
   rev(columnas.includes('supply'), 'y supply101 tiene su columna (21-sep: dejó de colgar de dash101)');
   rev(columnas.includes('cost'), 'y cost101 tiene su columna (7-oct: app con licencia por empresa)');
+  rev(columnas.includes('investor'), 'y patron101 tiene su columna (8-oct: llave `investor`, licencia por empresa)');
+  rev((await pagina.textContent('#e-tabla thead th[data-app="investor"]')).trim() === 'patron', 'y su encabezado dice «patron», no la llave de adentro');
   rev((await pagina.locator('#e-tabla thead th').count()) === columnas.length + 6,
       'y seis más: empresa, plan, gente, última entrada, estado y acciones');
   rev((await pagina.locator(`#e-filas tr[data-org="${ORG}"] input[data-app]`).count()) === columnas.length,

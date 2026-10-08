@@ -121,7 +121,7 @@ td .acciones{justify-content:flex-end;flex-wrap:nowrap}
  * 1280 px. En celular la tabla se sigue desplazando dentro de su caja. */
 #v-empresas{max-width:1400px}
 #e-tabla th,#e-tabla td{padding-left:9px;padding-right:9px}
-#e-tabla th.app,#e-tabla td.app{padding-left:5px;padding-right:5px}
+#e-tabla th.app,#e-tabla td.app{padding-left:4px;padding-right:4px}
 #e-tabla td .n,#e-tabla td .m{white-space:nowrap}
 
 /* interruptores */

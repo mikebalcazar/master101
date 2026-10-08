@@ -78,3 +78,11 @@ salía cortado a 1440 px (venía de antes del estilo nuevo). `#v-empresas` se
 abre a 1400 px, las columnas se aprietan y nombre/plan ya no se parten:
 cabe sin desplazar desde ~1230 px; en celular sigue desplazándose dentro de
 su caja. Medido con Chromium contra el banco falso a 1440, 1280 y 390.
+
+**8-oct (noche), patron101 en la tabla de Empresas.** Encargo del chat que
+construyó patron101 (Drive suite101/patron101/encargo-integrar-patron101.md).
+Llave `investor` en `APPS` (por dentro sigue siendo investor101; el
+encabezado dice «patron»). Licencia propia, como `cost`: una empresa nueva no
+nace con ella. Los `th.app` llevan `data-app` y la prueba compara contra esa
+llave, no contra el texto. Con nueve columnas las de interruptores van a 4 px
+de relleno para que «Suspender» siga cabiendo desde 1280 px.
