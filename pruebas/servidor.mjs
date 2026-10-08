@@ -53,7 +53,7 @@ export function apiFalsa() {
   const sesiones = new Map();   // cookie → usuario_id
   const codigos = new Map();    // correo → codigo
   const accesos = new Map([['u-cliente', { org_id: 'demo', tipo: 'cliente', ref_id: 'c1' }]]);
-  const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', cost101: 'cost', roster101: 'roster', nest101: 'nest' };
+  const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', cost101: 'cost', investor101: 'investor', roster101: 'roster', nest101: 'nest' };
   const supers = new Set(['u-duena']);
   const boletos = new Map();   // boleto de Google → cookie de sesión, un solo uso
   const bitacora = [];   // contrato 0.5.0: la escribe la API sola
@@ -283,7 +283,7 @@ export function apiFalsa() {
       if (!/^[a-z0-9-]{2,40}$/.test(id)) return err('datos_invalidos', 400, { id: 'slug de a-z, 0-9 y guiones' });
       if (!cuerpo.nombre) return err('datos_invalidos', 400, { falta: 'nombre' });
       if (orgs.has(id)) return err('datos_invalidos', 409, { id: 'ya existe' });
-      const o = { id, nombre: cuerpo.nombre, plan: cuerpo.plan || '', apps: { dash: false, supply: false, quell: false, peek: false, cotizador: false, cost: false, roster: false, nest: false, ...(cuerpo.apps || {}) }, moneda: cuerpo.moneda || 'MXN', activa: true, creado_at: new Date().toISOString() };
+      const o = { id, nombre: cuerpo.nombre, plan: cuerpo.plan || '', apps: { dash: false, supply: false, quell: false, peek: false, cotizador: false, cost: false, investor: false, roster: false, nest: false, ...(cuerpo.apps || {}) }, moneda: cuerpo.moneda || 'MXN', activa: true, creado_at: new Date().toISOString() };
       orgs.set(id, o); miembros.set(id, []);
       apunta(yo.correo, id, 'creada', null, `${o.nombre} · ${Object.entries(o.apps).filter(([, v]) => v).map(([k]) => k).join(', ')}`);
       return ok({ org: o, org_db_version: 3 }, 201);

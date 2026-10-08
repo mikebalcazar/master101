@@ -27,11 +27,16 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
  *  —y ahí sí por separado— se hace en workshop101.
  *
  *  `cost` (cost101, costos de obra) se agregó el 7-oct-2026. Es una app con
- *  licencia propia: una empresa nueva NO nace con ella; se prende aquí. */
+ *  licencia propia: una empresa nueva NO nace con ella; se prende aquí.
+ *
+ *  `investor` (patron101, rondas de inversión y préstamos a la empresa) se
+ *  agregó el 8-oct-2026, igual que `cost`: licencia propia, se prende aquí.
+ *  Por dentro conserva su nombre de nacimiento (investor101, llave `investor`);
+ *  lo que se ve dice patron101. */
 export const APPS = [
   ['dash', 'dash101'], ['supply', 'supply101'],
   ['quell', 'quell101'], ['peek', 'peek101'],
-  ['cotizador', 'quote101'], ['cost', 'cost101'], ['roster', 'roster101'], ['nest', 'nest101'],
+  ['cotizador', 'quote101'], ['cost', 'cost101'], ['investor', 'patron101'], ['roster', 'roster101'], ['nest', 'nest101'],
 ];
 
 const ROLES = { owner: 'dueño', admin: 'administración', socio: 'socio', staff: 'oficina' };
