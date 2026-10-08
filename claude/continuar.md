@@ -57,3 +57,18 @@ banco (`pruebas/servidor.mjs --falso`) imita todo eso, incluido que
 Las 105 orgs de humo de staging las barrió `pruebas/humo.mjs` de la API en
 su primera corrida con 0.5.0 (107 borradas); desde entonces cada corrida
 limpia lo suyo.
+
+## 8-oct-2026 · el look de cost101
+
+Mike, 8-oct: «todas las plataformas (…) con el diseño look and feel de
+cost101 pero siguiendo los parámetros de tipografía y de logo de dash y
+quell». En `public/estilo.css`: en pantalla siempre oscuro (degradado azul,
+vidrio, botones redondos, menú activo en píldora, diálogo de vidrio); al
+imprimir vuelven los claros y la barra no sale. Tipografía igual (Cifras +
+Raleway locales, títulos en 600; Sansation ya no se declara). Logo oficial
+`public/master101-claro.svg` en la barra (28 px) y en la entrada (36 px).
+Probado: dominio, entrada, atrás, versión y licencias en verde; capturas a
+1440×900 y 390×844 sin desborde de página ni texto oscuro sobre oscuro.
+Ojo: `panel.spec.mjs` contra el banco falso da 6 fallas que YA estaban en
+main (el banco no imita el alta con director/cortesía); contra staging, que
+es como corre en el flujo, pasa.
