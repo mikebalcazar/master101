@@ -72,3 +72,9 @@ Probado: dominio, entrada, atrás, versión y licencias en verde; capturas a
 Ojo: `panel.spec.mjs` contra el banco falso da 6 fallas que YA estaban en
 main (el banco no imita el alta con director/cortesía); contra staging, que
 es como corre en el flujo, pasa.
+
+**8-oct (tarde), la tabla de Empresas cabe.** Con 14 columnas, «Suspender»
+salía cortado a 1440 px (venía de antes del estilo nuevo). `#v-empresas` se
+abre a 1400 px, las columnas se aprietan y nombre/plan ya no se parten:
+cabe sin desplazar desde ~1230 px; en celular sigue desplazándose dentro de
+su caja. Medido con Chromium contra el banco falso a 1440, 1280 y 390.
