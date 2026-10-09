@@ -24,6 +24,8 @@ r = await ir('/iconos/'); const html = await r.text();
 ok(r.status === 200 && html.includes('Íconos de la suite 101') && html.includes("SONDEO = 'iconos-suite'"), 'GET /iconos/ → la hoja de íconos');
 { const { r, txt } = await pagina('/iconos-2/', "SONDEO = 'iconos-suite-2'");
   ok(r.status === 200 && txt.includes("SONDEO = 'iconos-suite-2'"), `GET /iconos-2/ → la segunda vuelta (${r.status})`); }
+{ const { r, txt } = await pagina('/iconos-3/', "SONDEO = 'iconos-suite-3'");
+  ok(r.status === 200 && txt.includes("SONDEO = 'iconos-suite-3'"), `GET /iconos-3/ → la tercera vuelta (${r.status})`); }
 r = await ir('/api/iconos-suite'); let j = await r.json().catch(() => null);
 ok(r.status === 200 && j && typeof j.respuestas === 'object', 'GET /api/iconos-suite → lo marcado (JSON)');
 r = await ir('/api/NO_VALE'); ok(r.status === 404, 'un nombre de sondeo inválido → 404');
