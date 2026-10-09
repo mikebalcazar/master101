@@ -10,6 +10,8 @@ const ir = (ruta, op) => fetch(BASE + ruta, op);
 let r = await ir('/'); ok(r.status === 200 && (await r.text()).includes('Sondeos 101'), 'GET / → la lista de sondeos');
 r = await ir('/iconos/'); const html = await r.text();
 ok(r.status === 200 && html.includes('Íconos de la suite 101') && html.includes("SONDEO = 'iconos-suite'"), 'GET /iconos/ → la hoja de íconos');
+r = await ir('/iconos-2/'); const h2 = await r.text();
+ok(r.status === 200 && h2.includes("SONDEO = 'iconos-suite-2'"), 'GET /iconos-2/ → la segunda vuelta');
 r = await ir('/api/iconos-suite'); let j = await r.json().catch(() => null);
 ok(r.status === 200 && j && typeof j.respuestas === 'object', 'GET /api/iconos-suite → lo marcado (JSON)');
 r = await ir('/api/NO_VALE'); ok(r.status === 404, 'un nombre de sondeo inválido → 404');
