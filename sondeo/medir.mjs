@@ -6,12 +6,24 @@ if (!BASE) { console.error('falta BASE'); process.exit(2); }
 let n = 0, fallas = 0; const t0 = Date.now();
 const ok = (c, m) => { n++; if (!c) fallas++; console.log(`${c ? 'ok   ' : 'FALLA'} ${m}`); };
 const ir = (ruta, op) => fetch(BASE + ruta, op);
+/* Un archivo recién subido tarda unos segundos en servirse en todo
+ * Cloudflare (9-oct: /iconos-2/ contestó antes de existir en staging).
+ * Las páginas se piden hasta 10 veces, 3 s entre una y otra. */
+async function pagina(ruta, busca) {
+  let r, txt = '';
+  for (let i = 0; i < 10; i++) {
+    r = await ir(ruta); txt = await r.text();
+    if (r.status === 200 && txt.includes(busca)) break;
+    await new Promise(s => setTimeout(s, 3000));
+  }
+  return { r, txt };
+}
 
 let r = await ir('/'); ok(r.status === 200 && (await r.text()).includes('Sondeos 101'), 'GET / → la lista de sondeos');
 r = await ir('/iconos/'); const html = await r.text();
 ok(r.status === 200 && html.includes('Íconos de la suite 101') && html.includes("SONDEO = 'iconos-suite'"), 'GET /iconos/ → la hoja de íconos');
-r = await ir('/iconos-2/'); const h2 = await r.text();
-ok(r.status === 200 && h2.includes("SONDEO = 'iconos-suite-2'"), 'GET /iconos-2/ → la segunda vuelta');
+{ const { r, txt } = await pagina('/iconos-2/', "SONDEO = 'iconos-suite-2'");
+  ok(r.status === 200 && txt.includes("SONDEO = 'iconos-suite-2'"), `GET /iconos-2/ → la segunda vuelta (${r.status})`); }
 r = await ir('/api/iconos-suite'); let j = await r.json().catch(() => null);
 ok(r.status === 200 && j && typeof j.respuestas === 'object', 'GET /api/iconos-suite → lo marcado (JSON)');
 r = await ir('/api/NO_VALE'); ok(r.status === 404, 'un nombre de sondeo inválido → 404');
