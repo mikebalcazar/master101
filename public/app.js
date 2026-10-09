@@ -32,11 +32,15 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
  *  `investor` (patron101, rondas de inversión y préstamos a la empresa) se
  *  agregó el 8-oct-2026, igual que `cost`: licencia propia, se prende aquí.
  *  Por dentro conserva su nombre de nacimiento (investor101, llave `investor`);
- *  lo que se ve dice patron101. */
+ *  lo que se ve dice patron101.
+ *
+ *  `bill` (bill101, facturas e impuestos) se agregó el 9-oct-2026, igual que
+ *  `cost` e `investor`: licencia propia, una empresa nueva NO nace con ella;
+ *  se prende aquí. */
 export const APPS = [
   ['dash', 'dash101'], ['supply', 'supply101'],
   ['quell', 'quell101'], ['peek', 'peek101'],
-  ['cotizador', 'quote101'], ['cost', 'cost101'], ['investor', 'patron101'], ['roster', 'roster101'], ['nest', 'nest101'],
+  ['cotizador', 'quote101'], ['cost', 'cost101'], ['investor', 'patron101'], ['bill', 'bill101'], ['roster', 'roster101'], ['nest', 'nest101'],
 ];
 
 const ROLES = { owner: 'dueño', admin: 'administración', socio: 'socio', staff: 'oficina' };
