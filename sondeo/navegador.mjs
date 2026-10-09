@@ -5,6 +5,11 @@ const BASE = process.env.BASE;
 if (!BASE || /sondeo\.taller101\.com/.test(BASE)) { console.error('sólo staging o local'); process.exit(2); }
 let n = 0, fallas = 0;
 const ok = (c, m) => { n++; if (!c) fallas++; console.log(`${c ? 'ok   ' : 'FALLA'} ${m}`); };
+/* Las marcas de una corrida anterior se quedan en la D1 de staging y los
+ * botones alternan («Se queda» dos veces lo quita): se limpian antes. */
+for (const id of ['dash101-2', 'dash101-3', 'dash101-5']) {
+  await fetch(`${BASE}/api/iconos-suite/${id}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ estado: '', elegida: false, nota: '' }) });
+}
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 for (const [ancho, alto] of [[1280, 900], [390, 844]]) {
   const p = await b.newPage({ viewport: { width: ancho, height: alto } });
