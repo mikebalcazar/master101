@@ -1,5 +1,3 @@
-> **9-oct-2026 · sondeo101 en sondeo.taller101.com.** Mike: «publica el html en sondeo.taller101.com; vamos a usar esa URL para futuros sondeos». Worker aparte en `sondeo/`, con su flujo `publicar-sondeo.yml` (el de master101 ya no corre por `sondeo/**`). Lo marcado va a la D1 `sondeo101` (staging: `sondeo101-staging`), creadas con el MCP de Cloudflare; el chat las lee con `d1_database_query`: `SELECT * FROM envios WHERE sondeo='iconos-suite' ORDER BY id DESC LIMIT 1`. Un sondeo nuevo es una carpeta en `sondeo/public/` y una liga en su `index.html`.
-
 # master101 — para seguir en otro chat
 
 Léelo después de `OPERAR.md` y del `CONTEXTO.md` de Drive. El documento de
@@ -98,3 +96,5 @@ sin espaciado entre letras: la tabla mide 1223 px y cabe en la caja de 1234
 de una ventana de 1280; a 1440, 1354 en 1354. panel.spec contra el banco
 falso sigue tronando en «Gente» (#125) antes de llegar a escritorio; las
 comprobaciones de escritorio se midieron aparte y pasan.
+
+**9-oct, sondeo101 en sondeo.taller101.com.** Mike: «publica el html en sondeo.taller101.com; vamos a usar esa URL para futuros sondeos». Worker aparte en `sondeo/`, con su flujo `publicar-sondeo.yml` (el de master101 ya no corre por `sondeo/**`). Lo marcado va a la D1 `sondeo101` (staging: `sondeo101-staging`), creadas con el MCP de Cloudflare; el chat las lee con `d1_database_query`: `SELECT * FROM envios WHERE sondeo='iconos-suite' ORDER BY id DESC LIMIT 1`. Un sondeo nuevo es una carpeta en `sondeo/public/` y una liga en su `index.html`.
