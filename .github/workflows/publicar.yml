@@ -29,6 +29,9 @@ on:
     paths-ignore:
       - 'claude/**'
       - '**.md'
+      # sondeo101 se publica con su propio flujo (publicar-sondeo.yml)
+      - 'sondeo/**'
+      - '.github/workflows/publicar-sondeo.yml'
   workflow_dispatch:
 
 permissions:

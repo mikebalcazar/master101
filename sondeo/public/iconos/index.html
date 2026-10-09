@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Íconos de la suite 101</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sansation:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+:root{color-scheme:light}
+/* Hoja de revisión: una sección por app, una tarjeta por opción; barra fija con el conteo y el fondo del ícono. */
+:root{
+  --bg:#f3f6f8; --panel:#ffffff; --fg:#14222c; --muted:#5b6b77; --line:#d6dee4;
+  --azul:#0381c2; --azul-suave:#e2f1f9; --rojo:#b3402f; --rojo-suave:#f8e6e2; --oro:#a86a00; --oro-suave:#fff2d6;
+  --tile:#0381c2; --glyph:#ffffff;
+  --display:"Sansation","Trebuchet MS",system-ui,sans-serif;
+  --texto:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d161c; --panel:#15222b; --fg:#e4edf2; --muted:#93a5b1; --line:#26363f;
+  --azul:#3aa3dc; --azul-suave:#12303f; --rojo:#e3806f; --rojo-suave:#3a1f1a; --oro:#f0b84a; --oro-suave:#3a2c0f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d161c; --panel:#15222b; --fg:#e4edf2; --muted:#93a5b1; --line:#26363f;
+  --azul:#3aa3dc; --azul-suave:#12303f; --rojo:#e3806f; --rojo-suave:#3a1f1a; --oro:#f0b84a; --oro-suave:#3a2c0f; color-scheme:dark}
+body[data-fondo="blanco"]{--tile:#ffffff; --glyph:#0381c2}
+body[data-fondo="oscuro"]{--tile:#14222c; --glyph:#ffffff}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--texto);font-size:16px;line-height:1.45;margin:0}
+.envoltura{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(1.6rem,3.2vw,2.3rem);letter-spacing:-.01em}
+.intro{padding-block:28px 12px;display:grid;gap:10px;max-width:72ch}
+.intro p{margin:0;color:var(--muted)}
+
+.barra{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);margin-inline:-16px;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
+.conteo{display:flex;gap:14px;flex-wrap:wrap;font-variant-numeric:tabular-nums;font-size:.95rem}
+.conteo b{font-weight:700}
+.guardado{font-size:.85rem;color:var(--muted);margin-left:auto}
+.guardado.error{color:var(--rojo)}
+.control{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;color:var(--fg);font:inherit;font-size:.85rem;padding:5px 10px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--azul);color:#fff}
+
+.aviso{margin-top:12px;padding:10px 14px;border-radius:8px;background:var(--oro-suave);color:var(--fg);border:1px solid var(--oro)}
+
+.indice{display:flex;flex-wrap:wrap;gap:6px;padding-block:16px 4px}
+.indice a{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none;font-size:.88rem}
+.indice a .pt{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.indice a.parcial .pt{background:var(--azul)}
+.indice a.lista .pt{background:var(--oro)}
+
+section.app{padding-block:28px 8px;border-top:1px solid var(--line);margin-top:20px;scroll-margin-top:72px}
+.cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:4px}
+.cab h2{font-size:1.45rem}
+.cab .que{color:var(--muted)}
+.resumen{font-size:.88rem;color:var(--muted);margin:2px 0 14px;font-variant-numeric:tabular-nums}
+.resumen .sel{color:var(--oro);font-weight:700}
+
+.rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;align-content:start;min-width:0;transition:opacity .15s}
+.card.queda{border-color:var(--azul);box-shadow:0 0 0 1px var(--azul) inset}
+.card.elegida{border-color:var(--oro);box-shadow:0 0 0 2px var(--oro) inset;background:linear-gradient(var(--oro-suave),var(--panel) 46%)}
+.card.desechar{opacity:.5}
+.card.desechar .muestra svg.grande{filter:grayscale(1)}
+.muestra{display:flex;align-items:flex-end;gap:12px}
+.muestra svg{display:block;color:var(--glyph);flex:none}
+.muestra svg.grande{width:112px;height:112px}
+.chicos{display:flex;align-items:flex-end;gap:8px}
+.chicos svg:nth-child(1){width:40px;height:40px}
+.chicos svg:nth-child(2){width:20px;height:20px}
+.ico .t{fill:var(--tile)}
+.ico .f{fill:currentColor;stroke:none}
+.ico .h{fill:var(--tile)}
+.ico .hs{stroke:var(--tile)}
+.ico .s{opacity:.45}
+.ico .d{stroke-dasharray:22 24}
+.meta{display:grid;gap:2px}
+.num{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ref .num{color:var(--oro)}
+.meta h3{font-size:1.02rem}
+.meta p{margin:0;font-size:.88rem;color:var(--muted)}
+.acciones{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.acciones button{font:inherit;font-size:.9rem;padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer}
+.acciones button:hover{border-color:var(--muted)}
+.acciones button[data-v="desechar"][aria-pressed="true"]{background:var(--rojo-suave);border-color:var(--rojo);color:var(--rojo);font-weight:600}
+.acciones button[data-v="queda"][aria-pressed="true"]{background:var(--azul-suave);border-color:var(--azul);color:var(--azul);font-weight:600}
+.elegir{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.06em;font-size:.85rem;cursor:pointer;padding:6px 8px;border-radius:8px;border:1px dashed var(--line)}
+.card.elegida .elegir{border-style:solid;border-color:var(--oro);color:var(--oro)}
+.elegir input{width:18px;height:18px;accent-color:var(--oro);margin:0}
+.nota{display:grid;gap:4px;font-size:.82rem;color:var(--muted)}
+.nota textarea{font:inherit;font-size:.92rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:64px;resize:vertical;width:100%}
+.card.desechar .nota{display:none}
+.ir-enviar{font-size:.85rem;font-weight:700;color:#fff;background:var(--azul);padding:6px 12px;border-radius:8px;text-decoration:none}
+.enviar{margin-top:40px;padding:22px;border-radius:14px;border:1px solid var(--line);background:var(--panel);display:grid;gap:12px;max-width:640px;scroll-margin-top:72px}
+.enviar h2{font-size:1.4rem}
+.enviar p{margin:0;color:var(--muted)}
+.btn-enviar{justify-self:start;font:inherit;font-weight:700;font-size:1rem;padding:11px 20px;border-radius:10px;border:0;background:var(--azul);color:#fff;cursor:pointer}
+.btn-enviar:disabled{opacity:.6;cursor:wait}
+.confirmado{color:var(--azul)!important;font-weight:600}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.card{transition:none}}
+@media (max-width:520px){.rejilla{grid-template-columns:1fr 1fr;gap:10px}.muestra svg.grande{width:84px;height:84px}.chicos svg:nth-child(1){width:32px;height:32px}.card{padding:10px}.guardado{margin-left:0}}
+@media (max-width:360px){.rejilla{grid-template-columns:1fr}}
+</style>
+
+</head>
+<body>
+<div class="envoltura">
+  <header class="intro">
+    <h1>Íconos de la suite 101</h1>
+    <p>Cinco opciones por app. Marca «Desechar» o «Se queda». En las que se quedan, deja una nota para la segunda vuelta. Si una ya es la buena, márcala «ELEGIDA»; sólo puede haber una por app. Todo se guarda solo; al final pica «Enviar mis marcas».</p>
+    <p>Cada ícono se ve en grande y a tamaño de pestaña y de celular. Arriba puedes cambiar el fondo para ver cómo quedan en azul, en blanco y en oscuro.</p>
+  </header>
+
+  <div class="barra">
+    <div class="conteo" id="conteo"></div>
+    <div class="control">Fondo
+      <span class="seg" id="fondo">
+        <button type="button" data-f="azul" aria-pressed="true">Azul</button>
+        <button type="button" data-f="blanco" aria-pressed="false">Blanco</button>
+        <button type="button" data-f="oscuro" aria-pressed="false">Oscuro</button>
+      </span>
+    </div>
+    <div class="control">Ver
+      <span class="seg" id="filtro">
+        <button type="button" data-v="todas" aria-pressed="true">Todas</button>
+        <button type="button" data-v="pendientes" aria-pressed="false">Sin revisar</button>
+        <button type="button" data-v="quedan" aria-pressed="false">Se quedan</button>
+      </span>
+    </div>
+    <span class="guardado" id="guardado">Conectando…</span>
+    <a class="ir-enviar" href="#enviar">Terminé</a>
+  </div>
+  <div class="aviso" id="aviso" hidden>No hay conexión con el sondeo: lo que marques se queda en este navegador hasta que vuelva el internet.</div>
+
+  <nav class="indice" id="indice" aria-label="Apps"></nav>
+  <main id="apps"></main>
+
+  <section class="enviar" id="enviar" aria-labelledby="t-enviar">
+    <h2 id="t-enviar">¿Terminaste?</h2>
+    <p class="estado-envio"></p>
+    <label class="nota" for="comentario-final">Algo general para la segunda vuelta (opcional)
+      <textarea id="comentario-final" placeholder="Por ejemplo: que todos lleven el aro del logotipo"></textarea></label>
+    <button type="button" class="btn-enviar">Enviar mis marcas</button>
+    <p class="confirmado" hidden>Listo, me llegó. Ya puedo leer lo que marcaste.</p>
+  </section>
+</div>
+
+<script>
+/* ---------- Dibujo ---------- */
+const R = Math.PI / 180;
+const pol = (cx, cy, r, g) => [cx + r * Math.cos(g * R), cy + r * Math.sin(g * R)];
+const f2 = n => Math.round(n * 10) / 10;
+const pt = p => f2(p[0]) + ' ' + f2(p[1]);
+
+function engrane(cx, cy, ro, ri, n) {
+  const paso = 360 / n, w1 = paso * 0.28, w2 = paso * 0.17; let d = '';
+  for (let i = 0; i < n; i++) {
+    const a = i * paso - 90;
+    d += (i ? 'L' : 'M') + pt(pol(cx, cy, ri, a - w1)) + 'L' + pt(pol(cx, cy, ro, a - w2)) + 'L' + pt(pol(cx, cy, ro, a + w2)) + 'L' + pt(pol(cx, cy, ri, a + w1));
+    d += 'A' + ri + ' ' + ri + ' 0 0 1 ' + pt(pol(cx, cy, ri, a + paso - w1));
+  }
+  return `<path d="${d}Z"/>`;
+}
+function sierra(cx, cy, ro, ri, n) {
+  const paso = 360 / n; let d = '';
+  for (let i = 0; i < n; i++) {
+    const a = i * paso;
+    d += (i ? 'L' : 'M') + pt(pol(cx, cy, ri, a)) + 'L' + pt(pol(cx, cy, ro, a + paso * 0.72));
+  }
+  return `<path d="${d}Z" stroke-width="20"/>`;
+}
+function dolar(cx, cy, s, cls = '') {
+  return `<g transform="translate(${cx} ${cy}) scale(${s})" stroke-width="${f2(26 / s)}" class="${cls}"><path d="M46 -58C46 -86 24 -100 0 -100C-30 -100 -46 -82 -46 -58C-46 -6 46 -10 46 46C46 74 26 100 -4 100C-30 100 -46 86 -50 66M0 -128V128"/></g>`;
+}
+function arcoFlecha(cx, cy, r, a0, a1) {
+  const p0 = pol(cx, cy, r, a0), p1 = pol(cx, cy, r, a1);
+  const grande = (a1 - a0) > 180 ? 1 : 0;
+  const tx = -Math.sin(a1 * R), ty = Math.cos(a1 * R);
+  const ala = (g) => { const c = Math.cos(g * R), s = Math.sin(g * R); return [p1[0] - 44 * (tx * c - ty * s), p1[1] - 44 * (tx * s + ty * c)]; };
+  return `<path d="M${pt(p0)}A${r} ${r} 0 ${grande} 1 ${pt(p1)}"/><path d="M${pt(ala(38))}L${pt(p1)}L${pt(ala(-38))}"/>`;
+}
+const hoja = (x0, y0, x1, y1, dobl = 52) => `<path d="M${x0} ${y0}H${x1 - dobl}L${x1} ${y0 + dobl}V${y1}H${x0}Z"/><path d="M${x1 - dobl} ${y0}V${y0 + dobl}H${x1}"/>`;
+const pin = (cx, cy, r, alto) => `<path class="f" d="M${cx} ${cy + alto}C${cx} ${cy + alto} ${cx - r} ${cy + r * 0.75} ${cx - r} ${cy}A${r} ${r} 0 0 1 ${cx + r} ${cy}C${cx + r} ${cy + r * 0.75} ${cx} ${cy + alto} ${cx} ${cy + alto}Z"/><circle class="h" stroke="none" cx="${cx}" cy="${cy}" r="${f2(r * 0.38)}"/>`;
+const persona = (cx, cy, rc, ancho, cls = '') => `<g class="${cls}"><circle cx="${cx}" cy="${cy}" r="${rc}"/><path d="M${cx - ancho} ${cy + rc * 2.6}C${cx - ancho} ${cy + rc * 1.3} ${cx + ancho} ${cy + rc * 1.3} ${cx + ancho} ${cy + rc * 2.6}"/></g>`;
+
+const svgIcono = (cuerpo, cls = 'grande') =>
+  `<svg class="ico ${cls}" viewBox="0 0 512 512" aria-hidden="true"><rect class="t" width="512" height="512" rx="112"/><g fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">${cuerpo}</g></svg>`;
+
+/* ---------- Las apps y sus opciones ---------- */
+const APPS = [
+ { id:'suite101', que:'La puerta de la suite: de aquí se entra a cada programa.', ops:[
+   ['Cuadrícula de programas','Nueve programas en una sola entrada; el del centro eres tú.',
+     (()=>{let s='';for(let r=0;r<3;r++)for(let c=0;c<3;c++)s+=`<rect ${r==1&&c==1?'class="f"':''} x="${120+100*c}" y="${120+100*r}" width="72" height="72" rx="18"/>`;return s;})()],
+   ['La puerta','Una puerta entreabierta: entras una vez y ya estás en todo.',
+     `<path d="M176 400V120H336V400"/><path class="f s" d="M176 120L284 150V384L176 400Z"/><path d="M176 120L284 150V384L176 400Z"/><circle class="f" cx="258" cy="272" r="13"/><path d="M116 400H396"/>`],
+   ['Programas conectados','Un centro y los programas a su alrededor, todos ligados.',
+     (()=>{let s='<circle class="f" cx="256" cy="256" r="42"/>';for(let i=0;i<6;i++){const g=i*60-90;s+=`<path d="M${pt(pol(256,256,62,g))}L${pt(pol(256,256,98,g))}"/><circle cx="${f2(pol(256,256,128,g)[0])}" cy="${f2(pol(256,256,128,g)[1])}" r="28"/>`;}return s;})()],
+   ['Capas de la suite','Los programas apilados como capas de un mismo sistema.',
+     `<path fill="currentColor" d="M256 120L400 192L256 264L112 192Z"/><path d="M112 256L256 328L400 256"/><path class="s" d="M112 320L256 392L400 320"/>`],
+   ['Aro 101 con programas','El aro del logotipo de taller101 rodeando cuatro programas.',
+     `<path d="M247.9 435.3A179.5 179.5 0 1 1 353.2 406.9" stroke-width="22"/><rect class="f" x="182" y="182" width="64" height="64" rx="14"/><rect x="266" y="182" width="64" height="64" rx="14"/><rect x="182" y="266" width="64" height="64" rx="14"/><rect x="266" y="266" width="64" height="64" rx="14"/>`],
+ ]},
+ { id:'quell101', que:'El avance de la obra, pin por pin, sobre el plano.', ref:['El ícono de hoy','Así se ve hoy quell101 en el celular: el aro de taller101 con la «Q».','<svg class="ico grande" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#0381c2"/><g><path d="M247.857,435.325A179.510,179.510 0 1 1 353.242,406.890" fill="none" stroke="#ffffff" stroke-width="21.9"/><g transform="translate(104.877,388.989) scale(0.185998,-0.185998)" fill="#ffffff"><path d="M818 220Q1250 220 1250 719Q1250 1210 818 1210Q375 1210 375 719Q375 220 818 220ZM100 713Q100 1440 818 1440Q1525 1440 1525 713Q1525 115 1080 7L1312 -263L1103 -422L778 -10Q132 -10 100 713Z"/></g></g></svg>'], ops:[
+   ['Pin sobre el plano','Muros de un plano y el pin de la pieza encima.',
+     `<path d="M112 176V400H400V312M112 176H236M112 288H216V400"/>${pin(336,172,68,116)}`],
+   ['Casco de obra','El casco: la app de los que están en la obra.',
+     `<g transform="translate(0 -18)"><path d="M136 328A120 120 0 0 1 376 328"/><path d="M104 344H408" stroke-width="34"/><path d="M256 208V292"/><path class="s" d="M196 232V300M316 232V300"/></g>`],
+   ['Lista de avance','La tablilla con lo que ya quedó y lo que falta.',
+     `<rect x="148" y="128" width="216" height="288" rx="28"/><rect class="f" x="208" y="100" width="96" height="56" rx="16"/><path d="M184 214L202 232L236 198M268 216H328"/><path d="M184 282L202 300L236 266M268 284H328"/><path class="s" d="M188 352H236M268 352H328"/>`],
+   ['Avance en anillo','Tres cuartos de obra hechos, con su palomita.',
+     `<circle class="s" cx="256" cy="256" r="136"/><path d="M256 120A136 136 0 1 1 120 256"/><path d="M196 262L240 306L320 214"/>`],
+   ['Pin en el terreno','El pin clavado en el terreno de la obra.',
+     `<path class="s" d="M88 360L256 296L424 360L256 424Z"/>${pin(256,222,72,130)}`],
+ ]},
+ { id:'quote101', que:'La cotización del mueble, desglosada por componente.', ops:[
+   ['Hoja de cotización','La hoja con sus renglones y el total marcado.',
+     `${hoja(152,104,360,408)}<path class="s" d="M192 208H272M192 256H320M192 304H320"/><rect class="f" x="192" y="340" width="128" height="30" rx="8"/>`],
+   ['Etiqueta de precio','La etiqueta que cuelga del mueble.',
+     `<path d="M136 136H268L392 260L260 392L136 268Z"/><circle cx="196" cy="196" r="24"/>`],
+   ['Mueble desglosado','La cubierta, el cajón y la puerta, separados: así se cotiza.',
+     `<rect class="f" x="140" y="120" width="232" height="52" rx="10"/><rect x="140" y="208" width="232" height="88" rx="10"/><rect x="140" y="330" width="232" height="72" rx="10"/><path d="M228 252H284M228 366H284"/>`],
+   ['Cotización firmada','La hoja con el lápiz encima: la que el cliente aprueba.',
+     `<rect x="128" y="104" width="196" height="292" rx="20"/><path class="s" d="M168 168H284M168 216H284M168 264H240"/><path class="h" d="M380 228L424 272L300 396L248 408L260 356Z"/><path d="M350 258L394 302"/>`],
+   ['Ticket con total','El ticket largo con el total abajo.',
+     `<path d="M160 104H352V408L320 384L288 408L256 384L224 408L192 384L160 408Z"/><path class="s" d="M196 168H316M196 216H316M196 264H276"/><path d="M196 326H316" stroke-width="34"/>`],
+ ]},
+ { id:'dash101', que:'Las cuentas del taller: proyectos, gastos y flujo.', ops:[
+   ['Barras que suben','Barras de dinero con la línea que va para arriba.',
+     `<rect class="f s" x="136" y="296" width="40" height="96" rx="6"/><rect class="f s" x="206" y="242" width="40" height="150" rx="6"/><rect class="f s" x="276" y="268" width="40" height="124" rx="6"/><rect class="f s" x="346" y="180" width="40" height="212" rx="6"/><path d="M156 236L226 182L296 208L366 120"/><circle class="f" cx="366" cy="120" r="20"/><path d="M112 392H400"/>`],
+   ['Tablero de mando','El velocímetro: cómo va la empresa de un vistazo.',
+     `<path d="M120 336A136 136 0 0 1 392 336"/><path class="s" d="M136 336H156M171 251L185 265M256 216V236M341 251L327 265M356 336H376"/><path d="M256 336L322 236"/><circle class="f" cx="256" cy="336" r="26"/>`],
+   ['Monedas apiladas','El dinero de la empresa, apilado.',
+     `<ellipse cx="256" cy="168" rx="120" ry="40"/><path d="M136 168V344A120 40 0 0 0 376 344V168"/><path class="s" d="M136 226A120 40 0 0 0 376 226M136 285A120 40 0 0 0 376 285"/>`],
+   ['Entradas y salidas','Lo que entra y lo que sale: el flujo.',
+     `<path d="M200 384V140M144 196L200 140L256 196"/><path class="s" d="M312 128V372M256 316L312 372L368 316"/>`],
+   ['Gráfica en panel','Una ventana con la gráfica del flujo.',
+     `<rect x="112" y="128" width="288" height="256" rx="32"/><path d="M152 324L216 268L270 298L352 198"/><circle class="f" cx="352" cy="198" r="18"/>`],
+ ]},
+ { id:'peek101', que:'El portal del cliente: su proyecto y su estado de cuenta.', ops:[
+   ['El ojo','El cliente se asoma a su obra.',
+     `<path d="M96 256C160 160 352 160 416 256C352 352 160 352 96 256Z"/><circle cx="256" cy="256" r="60"/><circle class="f" cx="256" cy="256" r="24"/>`],
+   ['Lupa sobre la casa','Ver de cerca su proyecto.',
+     `<circle cx="228" cy="228" r="108"/><path d="M306 306L392 392" stroke-width="36"/><path d="M180 262V220L228 180L276 220V262Z"/>`],
+   ['Casa con ojo','Su casa, vista desde su celular.',
+     `<path d="M120 248L256 128L392 248V400H120Z"/><path d="M184 318C216 274 296 274 328 318C296 362 216 362 184 318Z"/><circle class="f" cx="256" cy="318" r="20"/>`],
+   ['Celular con avance','El avance de su obra en el celular.',
+     `<rect x="172" y="96" width="168" height="320" rx="34"/><path class="s" d="M232 132H280"/><path d="M210 262V226L256 190L302 226V262Z"/><path class="s" d="M208 330H304"/><path d="M208 330H272"/>`],
+   ['Pregunta del cliente','Ve y pregunta: el globo de la plática con el ojo dentro.',
+     `<path d="M120 140H392V328H232L168 384V328H120Z"/><path d="M184 234C212 196 300 196 328 234C300 272 212 272 184 234Z"/><circle class="f" cx="256" cy="234" r="18"/>`],
+ ]},
+ { id:'roster101', que:'Expedientes del personal, capturados desde el celular.', ops:[
+   ['Gafete','El gafete del trabajador.',
+     `<rect x="152" y="128" width="208" height="288" rx="28"/><rect class="f" x="220" y="100" width="72" height="44" rx="14"/>${persona(256,226,42,68)}<path class="s" d="M200 376H312"/>`],
+   ['Expediente','La carpeta con su persona: el expediente.',
+     `<path d="M104 160H208L240 192H408V400H104Z"/>${persona(256,272,34,60)}`],
+   ['Equipo','Las cuadrillas: los equipos de trabajo.',
+     `<g class="s"><circle cx="160" cy="212" r="34"/><circle cx="352" cy="212" r="34"/><path d="M96 336C96 290 128 270 168 270M416 336C416 290 384 270 344 270"/></g><circle class="h" cx="256" cy="196" r="46"/><path class="h" d="M168 368C168 290 344 290 344 368"/>`],
+   ['Captura desde el celular','El celular que toma la foto del documento.',
+     `<rect x="168" y="96" width="176" height="320" rx="34"/><path d="M200 186V162H224M288 162H312V186M312 270V294H288M224 294H200V270" stroke-width="18"/>${persona(256,206,26,40)}<circle class="s" cx="256" cy="372" r="14"/>`],
+   ['Trabajador con casco','La persona de la obra, con su casco.',
+     `<circle cx="256" cy="272" r="60"/><path class="f" d="M182 238A74 74 0 0 1 330 238Z"/><path d="M164 242H348"/><path d="M144 416C144 356 368 356 368 416"/>`],
+ ]},
+ { id:'supply101', que:'Pedir compras: la orden, su pago y su comprobante.', ops:[
+   ['Carrito','El carrito de las compras de la obra.',
+     `<path d="M104 144H152L192 320H352L388 200H168"/><circle cx="216" cy="374" r="24"/><circle cx="328" cy="374" r="24"/>`],
+   ['Caja','El material que llega en caja.',
+     `<path d="M256 112L392 184V336L256 408L120 336V184Z"/><path d="M120 184L256 256L392 184M256 256V408"/><path class="s" d="M188 148L324 220"/>`],
+   ['Camión de entrega','El proveedor que entrega en la obra.',
+     `<g transform="translate(0 6)"><rect x="96" y="160" width="200" height="168" rx="12"/><path d="M296 208H356L408 264V328H296"/><circle class="h" cx="168" cy="340" r="30"/><circle class="h" cx="348" cy="340" r="30"/></g>`],
+   ['Orden que sale','La orden de compra que sale para que la paguen.',
+     `${hoja(104,104,280,408,48)}<path class="s" d="M144 196H232M144 244H240M144 292H200"/><path d="M316 256H408M364 212L408 256L364 300"/>`],
+   ['Bolsa con palomita','La compra hecha y comprobada.',
+     `<path d="M144 192H368L352 408H160Z"/><path d="M208 192V160A48 48 0 0 1 304 160V192"/><path d="M212 302L244 334L304 270"/>`],
+ ]},
+ { id:'workshop101', que:'El panel de la empresa: la gente y qué programas ve cada quien.', ops:[
+   ['El edificio de la empresa','La empresa con sus oficinas.',
+     `<rect x="152" y="112" width="208" height="304" rx="16"/><rect class="f" x="196" y="160" width="40" height="36" rx="6"/><rect class="f" x="276" y="160" width="40" height="36" rx="6"/><rect class="f" x="196" y="222" width="40" height="36" rx="6"/><rect class="f" x="276" y="222" width="40" height="36" rx="6"/><rect class="f s" x="196" y="284" width="40" height="36" rx="6"/><rect class="f s" x="276" y="284" width="40" height="36" rx="6"/><path d="M232 416V354H280V416"/>`],
+   ['Interruptores de permisos','Prender y apagar qué ve cada quien.',
+     `<rect class="f" x="160" y="120" width="192" height="64" rx="32"/><circle class="h" stroke="none" cx="320" cy="152" r="20"/><rect x="160" y="224" width="192" height="64" rx="32"/><circle class="f" cx="192" cy="256" r="20"/><rect class="f" x="160" y="328" width="192" height="64" rx="32"/><circle class="h" stroke="none" cx="320" cy="360" r="20"/>`],
+   ['Llave de acceso','La llave que abre cada programa.',
+     `<circle cx="192" cy="192" r="72"/><circle class="f" cx="176" cy="176" r="18"/><path d="M244 244L400 400"/><path d="M336 336L376 296M296 296L328 264"/>`],
+   ['Organigrama','Quién dirige y quién reporta a quién.',
+     `<rect class="f" x="208" y="104" width="96" height="72" rx="14"/><path d="M256 176V256M144 256H368M144 256V336M256 256V336M368 256V336"/><rect x="104" y="336" width="80" height="64" rx="14"/><rect x="216" y="336" width="80" height="64" rx="14"/><rect x="328" y="336" width="80" height="64" rx="14"/>`],
+   ['Engrane con persona','La gente y la configuración de la empresa.',
+     `${engrane(256,256,156,124,10)}${persona(256,226,32,58)}`],
+ ]},
+ { id:'cost101', que:'Costos de obra por partida: precios base, cuadrillas y catálogo.', ops:[
+   ['Catálogo de precios','La carpeta de precios base con sus separadores.',
+     `<rect x="144" y="104" width="208" height="304" rx="20"/><path d="M184 104V408"/><rect class="f" x="352" y="144" width="36" height="52" rx="8"/><rect class="f s" x="352" y="214" width="36" height="52" rx="8"/><rect class="f s" x="352" y="284" width="36" height="52" rx="8"/><path class="s" d="M216 176H312M216 224H312M216 272H288"/>`],
+   ['Balanza','Pesar el costo contra el precio.',
+     `<path d="M256 140V384M184 392H328M136 168H376"/><circle class="f" cx="256" cy="140" r="18"/><path d="M136 168L96 268M136 168L176 268M376 168L336 268M376 168L416 268"/><path d="M88 268H184A48 48 0 0 1 88 268Z"/><path d="M328 268H424A48 48 0 0 1 328 268Z"/>`],
+   ['Muro por partida','Los ladrillos: el costo de la obra partida por partida.',
+     `<rect x="112" y="160" width="288" height="192" rx="10"/><path d="M112 224H400M112 288H400"/><path d="M208 160V224M304 160V224M160 224V288M256 224V288M352 224V288M208 288V352M304 288V352"/>`],
+   ['Moneda','El precio, sin más.',
+     `<circle cx="256" cy="256" r="144"/><circle class="s" cx="256" cy="256" r="112"/>${dolar(256,256,0.82)}`],
+   ['Ladrillo con precio','La pieza de material y su precio.',
+     `<path d="M112 248H336V376H112Z"/><path d="M112 248L160 200H384L336 248M336 376L384 328V200"/><circle class="f" cx="356" cy="152" r="60"/>${dolar(356,152,0.36,'hs')}`],
+ ]},
+ { id:'patron101', que:'Préstamos de tus inversionistas, por rondas, con su estado de cuenta.', ops:[
+   ['Brote sobre monedas','La inversión que crece.',
+     `<ellipse cx="256" cy="344" rx="112" ry="34"/><path d="M144 344V376A112 34 0 0 0 368 376V344"/><path d="M256 330V222"/><path class="f" d="M256 254C256 196 202 174 160 178C164 224 204 254 256 254Z"/><path class="f" d="M256 226C256 176 300 148 352 152C348 198 312 226 256 226Z"/>`],
+   ['Escalones','Ronda tras ronda, para arriba.',
+     `<path d="M112 392H192V320H272V248H352V176H400"/><path d="M296 132H384V220M384 132L288 228"/>`],
+   ['Porcentaje','El interés de cada préstamo.',
+     `<circle cx="256" cy="256" r="144"/><circle cx="206" cy="206" r="30"/><circle cx="306" cy="306" r="30"/><path d="M322 186L190 326"/>`],
+   ['El banco','Las columnas del capital.',
+     `<path d="M104 196L256 112L408 196Z"/><path d="M152 228V356M224 228V356M288 228V356M360 228V356"/><path d="M112 392H400"/>`],
+   ['Ronda de préstamo','El dinero que va y regresa con su interés.',
+     `${arcoFlecha(256,256,140,200,330)}${arcoFlecha(256,256,140,20,150)}<circle class="f" cx="256" cy="256" r="62"/>${dolar(256,256,0.42,'hs')}`],
+ ]},
+ { id:'bill101', que:'Facturas emitidas y recibidas, su liga con el dinero y el IVA e ISR del mes, estimados.', ref:['El logotipo de ahorita','El logotipo de bill101 que hice hoy, dentro de un ícono.','<svg class="ico grande" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#0381c2"/><svg x="56" y="133.9" width="400" height="244.1" viewBox="210.05 208.74 318.70 194.51" fill="#ffffff"> <g fill="#ffffff" transform="translate(0,351.34) scale(0.047783,-0.047783)"><path d="M4660.8877341313855 243Q4751.8877341313855 214 4871.8877341313855 214Q5111.8877341313855 214 5111.8877341313855 553Q5111.8877341313855 830 4904.8877341313855 830Q4770.8877341313855 830 4660.8877341313855 776ZM4395.8877341313855 1430H4660.8877341313855V970Q4779.8877341313855 1050 4925.8877341313855 1050Q5373.8877341313855 1050 5373.8877341313855 546Q5373.8877341313855 0 4860.8877341313855 0Q4644.8877341313855 0 4395.8877341313855 43ZM5736.487734131386 1430V1220H5471.487734131386V1430ZM5736.487734131386 1050V0H5471.487734131386V1050ZM6149.087734131386 1430V0H5884.087734131386V1430ZM6561.687734131387 1430V0H6296.687734131387V1430Z"/></g> <path d="M431.49,208.74c-53.63,0-97.26,43.63-97.26,97.26,0,20.28,6.25,39.12,16.91,54.72h-141.09v6.52h145.96c17.85,21.95,45.05,36.01,75.48,36.01,53.63,0,97.26-43.63,97.26-97.26s-43.63-97.26-97.26-97.26ZM431.49,396.74c-29.48,0-55.72-14.14-72.3-35.99v-.02h-.01c-11.55-15.22-18.42-34.18-18.42-54.72,0-50.03,40.7-90.74,90.74-90.74s90.73,40.7,90.73,90.74-40.7,90.74-90.73,90.74Z"/> <path d="M431.81,262.73c-26.11,0-39.16,14.87-39.16,44.62s13.05,44.38,39.16,44.38,38.48-14.79,38.48-44.38-12.83-44.62-38.48-44.62ZM431.81,337.61c-14.85,0-22.28-10.21-22.28-30.63s7.43-30.14,22.28-30.14,21.61,10.05,21.61,30.14-7.2,30.63-21.61,30.63Z"/> <rect x="366.4" y="261.5" width="16.27" height="89.61"/> <rect x="479.98" y="261.19" width="16.27" height="89.61"/> </svg></svg>'], ops:[
+   ['Factura XML','La factura tal como llega: su XML.',
+     `${hoja(144,104,368,408,68)}<path d="M222 236L180 278L222 320M290 236L332 278L290 320"/><path class="s" d="M270 220L242 336"/>`],
+   ['Ticket con impuesto','La factura y su IVA.',
+     `<path d="M160 104H352V408L320 384L288 408L256 384L224 408L192 384L160 408Z"/><circle cx="216" cy="196" r="26"/><circle cx="296" cy="292" r="26"/><path d="M308 180L204 308"/><path class="s" d="M196 348H316"/>`],
+   ['Factura vigente','La factura que el SAT dice que sigue vigente.',
+     `${hoja(136,104,336,392,52)}<path class="s" d="M176 200H288M176 248H288M176 296H240"/><circle class="h" stroke="none" cx="336" cy="344" r="92"/><circle class="f" cx="336" cy="344" r="72"/><path class="hs" d="M302 346L326 370L372 322"/>`],
+   ['Factura ligada al pago','La factura que encuentra su pago en dash101.',
+     `<rect x="104" y="112" width="176" height="248" rx="20"/><path class="s" d="M144 176H240M144 224H240M144 272H208"/><circle class="h" cx="332" cy="320" r="84"/>${dolar(332,320,0.42)}`],
+   ['Paquete de XML','La carpeta con el .zip de facturas que se sube.',
+     `<path d="M104 168H212L244 200H408V392H104Z"/><path d="M256 200V392" class="s"/><path d="M244 224H256M256 252H268M244 280H256M256 308H268M244 336H256" stroke-width="18"/><rect class="f" x="236" y="344" width="40" height="48" rx="8"/>`],
+ ]},
+ { id:'draw101', que:'CAD 2D que abre el DWG del arquitecto y saca el plano de fabricación.', ops:[
+   ['Compás','El compás del dibujante.',
+     `<path d="M256 150L172 400M256 150L340 400"/><circle class="h" cx="256" cy="128" r="24"/><path d="M256 104V80"/><path class="s" d="M340 400A168 168 0 0 1 172 400"/>`],
+   ['Escuadra','La escuadra con su regla.',
+     `<path d="M128 392V136L384 392Z"/><path class="s" d="M176 344V252L268 344Z"/><path d="M176 392V372M224 392V372M272 392V372M320 392V372" stroke-width="16"/>`],
+   ['Lápiz','El lápiz que traza.',
+     `<path d="M320 112L400 192L196 396L112 400L116 316Z"/><path d="M290 142L370 222"/><path class="s" d="M116 316L196 396"/>`],
+   ['Cota','La pieza con su medida: el plano de fabricación.',
+     `<g stroke-width="22"><rect x="136" y="216" width="240" height="144" rx="8"/><path d="M136 152H376"/><path class="s" d="M136 124V188M376 124V188"/><path d="M166 132L136 152L166 172M346 132L376 152L346 172"/></g>`],
+   ['Cursor de dibujo','La mira del programa de dibujo.',
+     `<path d="M256 104V208M256 304V408M104 256H208M304 256H408"/><rect x="216" y="216" width="80" height="80" rx="4"/>`],
+ ]},
+ { id:'nest101', que:'El despiece: del mueble a la lista de corte.', ops:[
+   ['Tablero acomodado','Las piezas acomodadas en el tablero.',
+     `<rect class="f s" x="104" y="136" width="144" height="120"/><rect x="104" y="136" width="304" height="240" rx="12"/><path d="M248 136V376M104 256H248M248 216H408M328 216V376"/>`],
+   ['Sierra','El disco de la sierra que corta.',
+     `${sierra(256,256,152,124,18)}<circle class="s" cx="256" cy="256" r="72"/><circle class="f" cx="256" cy="256" r="28"/>`],
+   ['Lista de corte','Las piezas, una por renglón, de la más larga a la más corta.',
+     `<rect class="f" x="112" y="132" width="288" height="44" rx="10"/><rect x="112" y="204" width="232" height="44" rx="10"/><rect x="112" y="276" width="200" height="44" rx="10"/><rect x="112" y="348" width="144" height="44" rx="10"/>`],
+   ['Cortes punteados','El tablero con las líneas por donde va el corte.',
+     `<rect class="f s" x="104" y="144" width="104" height="112"/><rect x="104" y="144" width="304" height="224" rx="12"/><path class="d" d="M208 144V368M312 144V368M104 256H408"/>`],
+   ['Tableros apilados','Los tableros listos para cortar.',
+     (()=>{let s='<g stroke-width="20" transform="translate(0 -14)">';for(const k of [2,1,0]){const d=k*56;s+=`<path class="h" d="M112 ${200+d}L256 ${136+d}L400 ${200+d}V${228+d}L256 ${292+d}L112 ${228+d}Z"/><path d="M112 ${200+d}L256 ${264+d}L400 ${200+d}M256 ${264+d}V${292+d}"/>`;}return s+'</g>';})()],
+ ]},
+ { id:'shape101', que:'CAD 2D: DXF y DWG, cotas, hojas con pie de plano e impresión.', ops:[
+   ['Hoja con pie de plano','La hoja impresa con su cuadro de datos.',
+     `<rect x="104" y="128" width="304" height="256" rx="16"/><path d="M288 384V320H408M288 352H408" class="s"/><circle cx="196" cy="232" r="52"/><path d="M272 180H352V276H272Z"/>`],
+   ['Curva con manijas','La curva que se jala de sus puntos.',
+     `<path class="s" d="M120 368L168 160M392 144L344 352"/><path d="M120 368C168 160 344 352 392 144"/><rect class="f" x="100" y="348" width="40" height="40" rx="6"/><rect class="f" x="372" y="124" width="40" height="40" rx="6"/><circle class="h" cx="168" cy="160" r="16" stroke-width="16"/><circle class="h" cx="344" cy="352" r="16" stroke-width="16"/>`],
+   ['Figuras','Círculo y rectángulo encimados: el dibujo en limpio.',
+     `<rect x="232" y="128" width="160" height="160" rx="6"/><circle cx="208" cy="304" r="96"/>`],
+   ['Polígono con vértices','La figura con sus puntos para editar.',
+     (()=>{const v=[-90,-18,54,126,198].map(g=>pol(256,268,140,g));let s=`<path d="M${v.map(pt).join('L')}Z"/>`;for(const p of v)s+=`<rect class="f" x="${f2(p[0]-20)}" y="${f2(p[1]-20)}" width="40" height="40" rx="6"/>`;return s;})()],
+   ['Ángulo acotado','Dos líneas y la medida del ángulo.',
+     `<path d="M128 384H392M128 384L328 168"/><path class="s" d="M224 384A96 96 0 0 0 193 314"/><circle class="f" cx="128" cy="384" r="18"/><circle class="f" cx="328" cy="168" r="18"/><circle class="f" cx="392" cy="384" r="18"/>`],
+ ]},
+ { id:'master101', que:'El panel del dueño de la suite: todas las empresas y sus licencias.', ops:[
+   ['Corona','El dueño de la suite.',
+     `<path d="M112 344L136 168L200 248L256 144L312 248L376 168L400 344Z"/><path d="M128 392H384"/>`],
+   ['Escudo','Lo que cuida al resto: licencias y acceso.',
+     `<path d="M256 104L384 152V256C384 328 328 384 256 408C184 384 128 328 128 256V152Z"/><path d="M200 258L240 298L316 214"/>`],
+   ['Todas las empresas','Varias empresas, una al frente.',
+     `<rect x="112" y="232" width="80" height="168" rx="10"/><rect class="f s" x="216" y="136" width="80" height="264" rx="10"/><rect x="216" y="136" width="80" height="264" rx="10"/><rect x="320" y="200" width="80" height="200" rx="10"/>`],
+   ['Controles','Las perillas de cada empresa: plan, licencias y cobro.',
+     `<path class="s" d="M176 120V392M256 120V392M336 120V392"/><circle class="f" cx="176" cy="300" r="30"/><circle class="f" cx="256" cy="184" r="30"/><circle class="f" cx="336" cy="252" r="30"/>`],
+   ['Globo','Todas las empresas, desde arriba.',
+     `<circle cx="256" cy="256" r="144"/><ellipse cx="256" cy="256" rx="64" ry="144"/><path d="M112 256H400"/><path class="s" d="M136 184H376M136 328H376"/>`],
+ ]},
+];
+
+/* ---------- Estado ---------- */
+const estado = {};            // id -> {estado, elegida, nota}
+const cola = {};              // id -> promesa de la última escritura
+const vacio = () => ({ estado: '', elegida: false, nota: '' });
+const de = id => estado[id] || (estado[id] = vacio());
+
+const $ = s => document.querySelector(s);
+const guardado = $('#guardado');
+function marcarGuardado(t, err) { guardado.textContent = t; guardado.classList.toggle('error', !!err); }
+
+function opcionesDe(app) {
+  const l = [];
+  if (app.ref) l.push({ key: 'hoy', num: 'Referencia', nombre: app.ref[0], idea: app.ref[1], svg: app.ref[2], ref: true });
+  app.ops.forEach((o, i) => l.push({ key: String(i + 1), num: 'Opción ' + (i + 1), nombre: o[0], idea: o[1], cuerpo: o[2] }));
+  return l;
+}
+
+/* ---------- Pintar ---------- */
+function pintar() {
+  const cont = $('#apps'), ind = $('#indice');
+  for (const app of APPS) {
+    const a = document.createElement('a'); a.href = '#' + app.id; a.id = 'ix-' + app.id;
+    a.innerHTML = `<span class="pt"></span>${app.id}`; ind.append(a);
+    const sec = document.createElement('section'); sec.className = 'app'; sec.id = app.id;
+    sec.innerHTML = `<div class="cab"><h2>${app.id}</h2><span class="que">${app.que}</span></div><p class="resumen" id="res-${app.id}"></p><div class="rejilla"></div>`;
+    const rej = sec.querySelector('.rejilla');
+    for (const o of opcionesDe(app)) {
+      const id = app.id + '-' + o.key;
+      const grande = o.ref ? o.svg : svgIcono(o.cuerpo);
+      const chico = o.ref ? o.svg.replace('class="ico grande"', 'class="ico"') : svgIcono(o.cuerpo, '');
+      const art = document.createElement('article');
+      art.className = 'card' + (o.ref ? ' ref' : ''); art.dataset.id = id; art.dataset.app = app.id;
+      art.innerHTML = `
+        <div class="muestra">${grande}<div class="chicos">${chico}${chico}</div></div>
+        <div class="meta"><span class="num">${o.num}</span><h3>${o.nombre}</h3><p>${o.idea}</p></div>
+        <div class="acciones" role="group" aria-label="Decisión sobre ${app.id}, ${o.num}">
+          <button type="button" data-v="desechar" aria-pressed="false">Desechar</button>
+          <button type="button" data-v="queda" aria-pressed="false">Se queda</button>
+        </div>
+        <label class="elegir"><input type="checkbox" id="el-${id}"> ELEGIDA</label>
+        <label class="nota" for="nt-${id}">Notas para la segunda vuelta
+          <textarea id="nt-${id}" placeholder="Qué le cambiarías"></textarea></label>`;
+      rej.append(art);
+    }
+    cont.append(sec);
+  }
+}
+
+function pintarTarjeta(id) {
+  const art = document.querySelector(`article[data-id="${id}"]`); if (!art) return;
+  const e = de(id);
+  art.classList.toggle('desechar', e.estado === 'desechar');
+  art.classList.toggle('queda', e.estado === 'queda' && !e.elegida);
+  art.classList.toggle('elegida', e.elegida);
+  for (const b of art.querySelectorAll('.acciones button')) b.setAttribute('aria-pressed', String(e.estado === b.dataset.v));
+  art.querySelector('input[type=checkbox]').checked = e.elegida;
+  const ta = art.querySelector('textarea');
+  if (document.activeElement !== ta && ta.value !== e.nota) ta.value = e.nota;
+}
+
+function pintarResumenes() {
+  let total = 0, revisadas = 0, quedan = 0, desech = 0, elegidas = 0;
+  for (const app of APPS) {
+    const ops = opcionesDe(app);
+    let q = 0, d = 0, el = null;
+    for (const o of ops) {
+      const e = de(app.id + '-' + o.key); total++;
+      if (e.estado || e.elegida) revisadas++;
+      if (e.elegida) { el = o.num; elegidas++; }
+      if (e.estado === 'queda' || e.elegida) q++;
+      if (e.estado === 'desechar') d++;
+    }
+    quedan += q; desech += d;
+    const pend = ops.length - q - d;
+    $('#res-' + app.id).innerHTML = `${q} se quedan · ${d} desechadas · ${pend} sin revisar` + (el ? ` · <span class="sel">ELEGIDA: ${el}</span>` : '');
+    const ix = $('#ix-' + app.id);
+    ix.classList.toggle('lista', !!el);
+    ix.classList.toggle('parcial', !el && (q + d) > 0);
+  }
+  $('#conteo').innerHTML = `<span><b>${revisadas}</b> de ${total} revisadas</span><span><b>${quedan}</b> se quedan</span><span><b>${desech}</b> desechadas</span><span><b>${elegidas}</b> de ${APPS.length} apps con ELEGIDA</span>`;
+  aplicarFiltro();
+}
+
+let filtro = 'todas';
+function aplicarFiltro() {
+  for (const art of document.querySelectorAll('article.card')) {
+    const e = de(art.dataset.id);
+    let ver = true;
+    if (filtro === 'pendientes') ver = !e.estado && !e.elegida;
+    if (filtro === 'quedan') ver = e.estado === 'queda' || e.elegida;
+    art.hidden = !ver;
+  }
+}
+
+/* ---------- Guardar ----------
+ * Cada marca va al Worker de sondeo.taller101.com (PUT /api/<sondeo>/<item>),
+ * que la guarda en la D1 `sondeo101`. «Enviar» deja además una foto de todo
+ * lo marcado en la tabla `envios`: de ahí la lee el chat. */
+const SONDEO = 'iconos-suite';
+const API = '/api/' + SONDEO;
+let enLinea = true;
+function respaldo() { try { localStorage.setItem('sondeo-' + SONDEO, JSON.stringify(estado)); } catch (_) {} }
+
+async function pedir(metodo, ruta, cuerpo) {
+  const r = await fetch(API + ruta, { method: metodo, headers: cuerpo ? { 'content-type': 'application/json' } : {}, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
+
+function escribir(id) {
+  const e = de(id);
+  const cuerpo = { estado: e.estado, elegida: e.elegida, nota: e.nota };
+  respaldo();
+  marcarGuardado('Guardando…');
+  const antes = cola[id] || Promise.resolve();
+  const intento = () => pedir('PUT', '/' + id, cuerpo);
+  const p = antes.catch(() => {}).then(intento)
+    .catch(() => new Promise(r => setTimeout(r, 800 + Math.random() * 800)).then(intento))
+    .then(() => { enLinea = true; marcarGuardado('Guardado'); })
+    .catch(() => { enLinea = false; marcarGuardado('No se pudo guardar; revisa el internet y vuelve a marcar', true); });
+  cola[id] = p; return p;
+}
+
+async function cambiar(id, cambio) {
+  const e = de(id); Object.assign(e, cambio);
+  const escrituras = [id];
+  if (cambio.elegida === true) {
+    e.estado = 'queda';
+    const app = id.split('-')[0];
+    for (const otro of Object.keys(estado)) {
+      if (otro !== id && otro.split('-')[0] === app && estado[otro].elegida) { estado[otro].elegida = false; escrituras.push(otro); }
+    }
+  }
+  if (cambio.estado === 'desechar') e.elegida = false;
+  for (const w of escrituras) pintarTarjeta(w);
+  pintarResumenes();
+  for (const w of escrituras) await escribir(w);
+}
+
+const temporizadores = {};
+function eventos() {
+  $('#apps').addEventListener('click', ev => {
+    const b = ev.target.closest('.acciones button'); if (!b) return;
+    const id = b.closest('article').dataset.id; const e = de(id);
+    const v = e.estado === b.dataset.v ? '' : b.dataset.v;
+    cambiar(id, { estado: v, ...(v !== 'queda' && e.elegida ? { elegida: false } : {}) });
+  });
+  $('#apps').addEventListener('change', ev => {
+    if (ev.target.type !== 'checkbox') return;
+    cambiar(ev.target.closest('article').dataset.id, { elegida: ev.target.checked });
+  });
+  $('#apps').addEventListener('input', ev => {
+    if (ev.target.tagName !== 'TEXTAREA') return;
+    const id = ev.target.closest('article').dataset.id; de(id).nota = ev.target.value;
+    marcarGuardado('Escribiendo…');
+    clearTimeout(temporizadores[id]); temporizadores[id] = setTimeout(() => escribir(id), 900);
+  });
+  $('#apps').addEventListener('focusout', ev => {
+    if (ev.target.tagName !== 'TEXTAREA') return;
+    const id = ev.target.closest('article').dataset.id;
+    if (temporizadores[id]) { clearTimeout(temporizadores[id]); delete temporizadores[id]; escribir(id); }
+  });
+  $('#fondo').addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    document.body.dataset.fondo = b.dataset.f;
+    for (const x of $('#fondo').children) x.setAttribute('aria-pressed', String(x === b));
+    try { localStorage.setItem('iconos101-fondo', b.dataset.f); } catch (_) {}
+  });
+  $('#filtro').addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    filtro = b.dataset.v;
+    for (const x of $('#filtro').children) x.setAttribute('aria-pressed', String(x === b));
+    aplicarFiltro();
+  });
+}
+
+/* ---------- Enviar ---------- */
+let ultimoEnvio = null;
+const fechaBonita = iso => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function pintarEnvio() {
+  const t = ultimoEnvio ? `Lo enviaste el ${fechaBonita(ultimoEnvio.cuando)}. Puedes seguir cambiando y volver a enviar.` : 'Cuando acabes, envíalo para que yo lo lea.';
+  for (const el of document.querySelectorAll('.estado-envio')) el.textContent = t;
+}
+async function enviar(boton) {
+  const zona = boton.closest('.enviar');
+  const comentario = zona.querySelector('textarea').value.trim();
+  boton.disabled = true; const antes = boton.textContent; boton.textContent = 'Enviando…';
+  try {
+    await Promise.all(Object.values(cola));
+    const r = await pedir('POST', '/enviar', { comentario });
+    ultimoEnvio = { cuando: r.cuando };
+    zona.querySelector('.confirmado').hidden = false;
+    pintarEnvio(); marcarGuardado('Enviado');
+  } catch (_) {
+    marcarGuardado('No se pudo enviar; revisa el internet e inténtalo otra vez', true);
+  } finally { boton.disabled = false; boton.textContent = antes; }
+}
+document.addEventListener('click', ev => { const b = ev.target.closest('.btn-enviar'); if (b) enviar(b); });
+
+/* ---------- Arranque ---------- */
+pintar(); eventos();
+try { const f = localStorage.getItem('iconos101-fondo'); if (f) $(`#fondo button[data-f="${f}"]`)?.click(); } catch (_) {}
+pintarResumenes();
+
+pintarEnvio();
+
+(async () => {
+  try {
+    const r = await pedir('GET', '');
+    for (const [id, x] of Object.entries(r.respuestas || {})) {
+      const loc = de(id); loc.estado = x.estado || ''; loc.elegida = !!x.elegida; loc.nota = x.nota || '';
+      pintarTarjeta(id);
+    }
+    ultimoEnvio = (r.envios || [])[0] || null;
+    pintarResumenes(); pintarEnvio(); marcarGuardado('Listo');
+  } catch (_) {
+    enLinea = false; $('#aviso').hidden = false;
+    try { Object.assign(estado, JSON.parse(localStorage.getItem('sondeo-' + SONDEO) || '{}')); } catch (_) {}
+    for (const id of Object.keys(estado)) pintarTarjeta(id);
+    pintarResumenes(); marcarGuardado('Sin conexión', true);
+  }
+})();
+</script>
+</body>
+</html>

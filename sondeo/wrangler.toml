@@ -1,0 +1,54 @@
+# sondeo101: los sondeos de Mike en sondeo.taller101.com (Mike, 9-oct-2026:
+# «vamos a usar esa URL para futuros sondeos también»).
+#
+# Vive en el repo de master101 porque es una herramienta del dueño de la
+# suite y porque aquí ya están los secretos con que se publica. Es un Worker
+# aparte, con su propio flujo (`.github/workflows/publicar-sondeo.yml`).
+#
+# Lo que se marca se guarda en la D1 `sondeo101`; el chat la lee directo
+# (no hay pantalla de resultados). Cada sondeo es una carpeta de `public/`.
+
+name = "sondeo101"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+workers_dev = true
+routes = [
+  { pattern = "sondeo.taller101.com", custom_domain = true }
+]
+
+[vars]
+DOMINIO_PROPIO = "sondeo.taller101.com"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sondeo101"
+database_id = "98fdfd1a-0a4f-453e-b03b-3a44380323cc"
+
+[observability]
+enabled = true
+
+# ─────────────── staging ───────────────
+[env.staging]
+name = "sondeo101-staging"
+routes = []
+
+[env.staging.assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = true
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "sondeo101-staging"
+database_id = "93259683-1472-4ba5-8327-1cd4369011ee"
+
+[env.staging.observability]
+enabled = true
