@@ -34,7 +34,7 @@ const PUERTO = Number(args.find((a) => /^\d+$/.test(a)) || process.env.PUERTO ||
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2', '.json': 'application/json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
 };
 
 /* ─────────────── la API de mentiras ─────────────── */
