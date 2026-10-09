@@ -118,10 +118,14 @@ tr.inactiva td .n,tr.inactiva td .m{opacity:.55}
 td .acciones{justify-content:flex-end;flex-wrap:nowrap}
 /* Empresas: 14 columnas no caben en 1180 px. La vista se abre a lo ancho y
  * las columnas se aprietan, para que «Suspender» quepa sin desplazar desde
- * 1280 px. En celular la tabla se sigue desplazando dentro de su caja. */
+ * 1280 px. En celular la tabla se sigue desplazando dentro de su caja.
+ * Con diez apps (9-oct, bill101) el relleno baja a 7 px y los encabezados de
+ * las apps van sin espaciado entre letras: la tabla mide 1223 px y cabe en
+ * la caja de 1234 que deja una ventana de 1280. */
 #v-empresas{max-width:1400px}
-#e-tabla th,#e-tabla td{padding-left:9px;padding-right:9px}
+#e-tabla th,#e-tabla td{padding-left:7px;padding-right:7px}
 #e-tabla th.app,#e-tabla td.app{padding-left:4px;padding-right:4px}
+#e-tabla th.app{letter-spacing:0}
 #e-tabla td .n,#e-tabla td .m{white-space:nowrap}
 
 /* interruptores */

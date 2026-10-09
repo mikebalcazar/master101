@@ -458,6 +458,8 @@ async function escritorio(navegador) {
   rev(columnas.includes('cost'), 'y cost101 tiene su columna (7-oct: app con licencia por empresa)');
   rev(columnas.includes('investor'), 'y patron101 tiene su columna (8-oct: llave `investor`, licencia por empresa)');
   rev((await pagina.textContent('#e-tabla thead th[data-app="investor"]')).trim() === 'patron', 'y su encabezado dice «patron», no la llave de adentro');
+  rev(columnas.includes('bill'), 'y bill101 tiene su columna (9-oct: facturas e impuestos, licencia por empresa)');
+  rev((await pagina.textContent('#e-tabla thead th[data-app="bill"]')).trim() === 'bill', 'y su encabezado dice «bill»');
   rev((await pagina.locator('#e-tabla thead th').count()) === columnas.length + 6,
       'y seis más: empresa, plan, gente, última entrada, estado y acciones');
   rev((await pagina.locator(`#e-filas tr[data-org="${ORG}"] input[data-app]`).count()) === columnas.length,

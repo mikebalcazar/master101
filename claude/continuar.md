@@ -86,3 +86,13 @@ encabezado dice «patron»). Licencia propia, como `cost`: una empresa nueva no
 nace con ella. Los `th.app` llevan `data-app` y la prueba compara contra esa
 llave, no contra el texto. Con nueve columnas las de interruptores van a 4 px
 de relleno para que «Suspender» siga cabiendo desde 1280 px.
+
+**9-oct, bill101 en la tabla de Empresas.** Encargo del chat que construyó
+bill101 (encargo-bill101.md, trabajo 2). Llave `bill` en `APPS`, encabezado
+«bill». Licencia propia, como `cost` e `investor`: una empresa nueva no nace
+con ella (en la API está prendida en `demo` y `forespot`). Con diez columnas
+de apps el relleno de las demás baja a 7 px y los encabezados de las apps van
+sin espaciado entre letras: la tabla mide 1223 px y cabe en la caja de 1234
+de una ventana de 1280; a 1440, 1354 en 1354. panel.spec contra el banco
+falso sigue tronando en «Gente» (#125) antes de llegar a escritorio; las
+comprobaciones de escritorio se midieron aparte y pasan.
