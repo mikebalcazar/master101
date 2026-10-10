@@ -688,7 +688,7 @@ function pintarDominio() {
   $('g-dominio').value = o.dominio || '';
   $('g-dominio-quitar').hidden = !o.dominio;
   $('g-dominio-nota').textContent = o.dominio
-    ? `Sus apps abren en dash101.${o.dominio}, quell101.${o.dominio}, roster101.${o.dominio}… y la puerta de la suite en suite101.${o.dominio}.`
+    ? `Sus apps abren sin el «101»: dash.${o.dominio}, quell.${o.dominio}, roster.${o.dominio}… y la puerta de la suite conserva el suyo: suite101.${o.dominio}.`
     : 'Sin dominio propio: la empresa entra por las direcciones de taller101.com.';
   $('g-dominio-nombres').hidden = true;
   if (o.dominio) cargarDominio(o.id).catch((e) => { $('err-dominio').textContent = e.message; });
