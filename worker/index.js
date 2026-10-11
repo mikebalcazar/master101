@@ -32,7 +32,10 @@ export function aDominioPropio(req, env, u) {
   if (d && u.protocol === 'http:' && u.hostname === d && (req.method === 'GET' || req.method === 'HEAD')) {
     return Response.redirect(`https://${d}${u.pathname}${u.search}`, 301);
   }
-  if (!d || u.hostname === d || !u.hostname.endsWith('.workers.dev')) return null;
+  // 11-oct-2026 · y la de taller101.com (DOMINIO_ANTERIOR): la suite se mudó
+  // a suite101.app; las ligas viejas siguen sirviendo y acaban aquí.
+  const vieja = u.hostname.endsWith('.workers.dev') || (!!env.DOMINIO_ANTERIOR && u.hostname === env.DOMINIO_ANTERIOR);
+  if (!d || u.hostname === d || !vieja) return null;
   if (req.method !== 'GET' && req.method !== 'HEAD') return null;
   if (u.pathname === PREFIJO || u.pathname.startsWith(PREFIJO + '/')) return null;
   return Response.redirect(`https://${d}${u.pathname}${u.search}`, 301);
