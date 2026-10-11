@@ -14,11 +14,15 @@ compatibility_date = "2026-09-01"
 
 workers_dev = true
 routes = [
-  { pattern = "sondeo.taller101.com", custom_domain = true }
+  { pattern = "sondeo.taller101.com", custom_domain = true },
+  # 11-oct-2026 · suite101.app es la marca (Mike: «taller101 será una marca
+  # de FORESPOT»). Ésta es la buena; la de arriba manda aquí.
+  { pattern = "sondeo.suite101.app", custom_domain = true }
 ]
 
 [vars]
-DOMINIO_PROPIO = "sondeo.taller101.com"
+DOMINIO_PROPIO = "sondeo.suite101.app"
+DOMINIO_ANTERIOR = "sondeo.taller101.com"
 
 [assets]
 directory = "./public"

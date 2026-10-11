@@ -2,7 +2,7 @@
  * Usa el sondeo `iconos-suite` en el sondeo101 de BASE: sólo staging o local. */
 import { chromium } from 'playwright';
 const BASE = process.env.BASE;
-if (!BASE || /sondeo\.taller101\.com/.test(BASE)) { console.error('sólo staging o local'); process.exit(2); }
+if (!BASE || /sondeo\.(taller101\.com|suite101\.app)/.test(BASE)) { console.error('sólo staging o local'); process.exit(2); }
 let n = 0, fallas = 0;
 const ok = (c, m) => { n++; if (!c) fallas++; console.log(`${c ? 'ok   ' : 'FALLA'} ${m}`); };
 /* Las marcas de una corrida anterior se quedan en la D1 de staging y los
