@@ -89,9 +89,11 @@ jobs:
         run: |
           set -u
           exec > >(tee /tmp/medido-prod.txt) 2>&1
-          echo "== producción: https://sondeo.taller101.com =="
-          for i in $(seq 1 24); do curl -sf -o /dev/null https://sondeo.taller101.com/ && break; sleep 5; done
-          BASE=https://sondeo.taller101.com node sondeo/medir.mjs
+          echo "== producción: https://sondeo.suite101.app =="
+          for i in $(seq 1 24); do curl -sf -o /dev/null https://sondeo.suite101.app/ && break; sleep 5; done
+          BASE=https://sondeo.suite101.app node sondeo/medir.mjs
+          echo "== la de taller101.com manda a la nueva =="
+          curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://sondeo.taller101.com/
 
       - name: Dejar lo medido en el commit
         if: always()

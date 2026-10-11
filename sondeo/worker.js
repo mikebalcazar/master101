@@ -73,6 +73,11 @@ export default {
     if (d && u.hostname === d && u.protocol === 'http:' && (req.method === 'GET' || req.method === 'HEAD')) {
       return Response.redirect(`https://${d}${u.pathname}${u.search}`, 301);
     }
+    // 11-oct-2026 · la dirección de taller101.com manda a suite101.app (sólo
+    // lecturas; lo que se marca por /api/ se sigue guardando donde llegue).
+    if (d && env.DOMINIO_ANTERIOR && u.hostname === env.DOMINIO_ANTERIOR && !u.pathname.startsWith('/api/') && (req.method === 'GET' || req.method === 'HEAD')) {
+      return Response.redirect(`https://${d}${u.pathname}${u.search}`, 301);
+    }
     if (u.pathname.startsWith('/api/')) {
       try { return await api(req, env, u.pathname.slice(5).split('/').filter(Boolean)); }
       catch (e) { return json({ error: 'interno', detalle: String(e && e.message || e).slice(0, 200) }, 500); }
