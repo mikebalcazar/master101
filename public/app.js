@@ -689,7 +689,7 @@ function pintarDominio() {
   $('g-dominio-quitar').hidden = !o.dominio;
   $('g-dominio-nota').textContent = o.dominio
     ? `Sus apps abren sin el «101»: dash.${o.dominio}, quell.${o.dominio}, roster.${o.dominio}… y la puerta de la suite conserva el suyo: suite101.${o.dominio}.`
-    : 'Sin dominio propio: la empresa entra por las direcciones de taller101.com.';
+    : 'Sin dominio propio: la empresa entra por las direcciones de suite101.app.';
   $('g-dominio-nombres').hidden = true;
   if (o.dominio) cargarDominio(o.id).catch((e) => { $('err-dominio').textContent = e.message; });
 }
@@ -738,7 +738,7 @@ $('f-dominio').onsubmit = async (ev) => {
 };
 
 $('g-dominio-quitar').onclick = async () => {
-  if (!window.confirm(`¿Quitar el dominio ${ORG.dominio}? Sus direcciones dejarán de abrir; la empresa seguirá entrando por taller101.com.`)) return;
+  if (!window.confirm(`¿Quitar el dominio ${ORG.dominio}? Sus direcciones dejarán de abrir; la empresa seguirá entrando por suite101.app.`)) return;
   const b = $('g-dominio-quitar'); b.disabled = true; $('err-dominio').textContent = '';
   try {
     const r = await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/dominio`, { method: 'DELETE' });
