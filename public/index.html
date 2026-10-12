@@ -141,7 +141,7 @@
       <label for="a-plan">Plan <span class="opc">(etiqueta, por ahora)</span><input id="a-plan" placeholder="básico"></label>
     </div>
     <div class="dos">
-      <label for="a-dominio">Dominio propio <span class="opc">(opcional)</span><input id="a-dominio" autocapitalize="off" spellcheck="false" inputmode="url" placeholder="acme.com"><span class="pista">Sus apps abrirán en dash101.acme.com, quell101.acme.com, roster101.acme.com… La empresa tiene que apuntar ocho CNAME; las instrucciones salen en su ficha. Se puede poner después.</span></label>
+      <label for="a-dominio">Dominio propio <span class="opc">(opcional)</span><input id="a-dominio" autocapitalize="off" spellcheck="false" inputmode="url" placeholder="acme.com"><span class="pista">Sus apps abrirán en dash.acme.com, quell.acme.com, roster.acme.com… La empresa tiene que apuntar once CNAME; las instrucciones salen en su ficha. Se puede poner después.</span></label>
     </div>
     <fieldset class="apps-ini">
       <legend>Cobro</legend>
@@ -189,9 +189,10 @@
 
   <h2 class="h2">Dominio propio</h2>
   <p class="nota" id="g-dominio-nota">Cargando…</p>
+  <p class="nota" id="g-dominio-suite" hidden>Su dirección en la suite: <a id="g-dominio-suite-liga" target="_blank" rel="noopener"></a> — la puerta de la suite con el nombre de la empresa. Sirve con o sin dominio propio.</p>
   <form class="forma" id="f-dominio" novalidate>
     <div class="tres">
-      <label for="g-dominio">Dominio de la empresa<input id="g-dominio" autocapitalize="off" spellcheck="false" inputmode="url" placeholder="acme.com"><span class="pista">Sin «www» ni «https://». Sus apps abrirán en dash101.acme.com, quell101.acme.com, roster101.acme.com, suite101.acme.com…</span></label>
+      <label for="g-dominio">Dominio de la empresa<input id="g-dominio" autocapitalize="off" spellcheck="false" inputmode="url" placeholder="acme.com"><span class="pista">Sin «www» ni «https://». Sus apps abrirán en dash.acme.com, quell.acme.com, roster.acme.com, suite101.acme.com…</span></label>
       <label>&nbsp;<button class="btn" type="submit" id="b-dominio">Guardar dominio</button></label>
       <label>&nbsp;<button class="btn suave" type="button" id="g-dominio-quitar" hidden>Quitar el dominio</button></label>
     </div>

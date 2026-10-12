@@ -691,12 +691,24 @@ function pintarDominio() {
     ? `Sus apps abren sin el «101»: dash.${o.dominio}, quell.${o.dominio}, roster.${o.dominio}… y la puerta de la suite conserva el suyo: suite101.${o.dominio}.`
     : 'Sin dominio propio: la empresa entra por las direcciones de suite101.app.';
   $('g-dominio-nombres').hidden = true;
-  if (o.dominio) cargarDominio(o.id).catch((e) => { $('err-dominio').textContent = e.message; });
+  $('g-dominio-suite').hidden = true;
+  // Siempre: aunque no tenga dominio, la ficha dice su dirección en la suite.
+  cargarDominio(o.id).catch((e) => { $('err-dominio').textContent = e.message; });
 }
 
 async function cargarDominio(id) {
   const d = await pedir(`/admin/orgs/${encodeURIComponent(id)}/dominio`);
   if (!ORG || ORG.id !== id) return;
+  /* 12-oct-2026 · Mike escogió con botones «su dirección en suite101» para la
+   * empresa sin dominio: empresa.suite101.app, la puerta de la suite con su
+   * nombre. La da la API (sale del id de la empresa). */
+  const suite = d.direccion_suite;
+  $('g-dominio-suite').hidden = !suite;
+  if (suite) {
+    $('g-dominio-suite-liga').href = suite;
+    $('g-dominio-suite-liga').textContent = suite.replace('https://', '');
+  }
+  if (!d.dominio) return;
   const nombres = d.nombres || [];
   $('g-dominio-filas').innerHTML = nombres.map((n) => `<tr>
     <td class="mono">${esc(n.hostname)}</td>
@@ -727,7 +739,7 @@ $('f-dominio').onsubmit = async (ev) => {
   const b = $('b-dominio'); b.disabled = true; $('err-dominio').textContent = '';
   try {
     tomaOrg(await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}`, { method: 'PATCH', body: { dominio } }));
-    aviso('g-aviso', `Dominio guardado: ${ORG.dominio}. Sus ocho nombres quedaron dados de alta; falta que la empresa ponga sus CNAME.`, 'bien');
+    aviso('g-aviso', `Dominio guardado: ${ORG.dominio}. Sus once nombres quedaron dados de alta; falta que la empresa ponga sus CNAME.`, 'bien');
     await cargarBitacoraDe(ORG.id);
   } catch (e) {
     const d = e.detalle || {};
