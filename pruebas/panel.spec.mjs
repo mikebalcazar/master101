@@ -192,6 +192,17 @@ async function recorrido(navegador) {
   rev(true, 'con el código bueno entra a Empresas');
   rev((await pagina.textContent('#quien-n')).trim() === SUPER, 'arriba dice quién entró', SUPER);
   await pagina.waitForFunction(() => document.querySelectorAll('#e-filas tr[data-org]').length > 0, null, { timeout: 15000 });
+  {
+    /* 16-oct-2026 · Al abrir con la sesión viva, /yo una sola vez (antes dos
+     * seguidas: al abrir y otra en entrar()). */
+    const vistos = [];
+    const oye = (r) => { const u = new globalThis.URL(r.url()); if (u.pathname.startsWith('/s101/')) vistos.push(u.pathname); };
+    pagina.on('request', oye);
+    await pagina.reload();
+    await pagina.waitForFunction(() => document.querySelectorAll('#e-filas tr[data-org]').length > 0, null, { timeout: 15000 });
+    pagina.off('request', oye);
+    rev(vistos.filter((r) => r === '/s101/yo').length === 1, 'al abrir, /yo una sola vez', vistos.join(', '));
+  }
   /* La tabla y la API se leen en dos momentos distintos, y en staging puede
    * haber OTRA corrida creando y borrando empresas de prueba al mismo tiempo
    * (dos apps de la suite publicándose a la vez). Por eso se compara hasta

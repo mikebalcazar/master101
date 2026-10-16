@@ -349,10 +349,12 @@ $('nomanda-salir').onclick = salir;
 
 /* ─────────────── entrar: sólo superadmin ─────────────── */
 
-async function entrar() {
+/** `yo`, si ya se pidió al abrir, no se vuelve a pedir: cada /yo es un viaje
+ *  a la suite (16-oct-2026: se pedía dos veces seguidas al arrancar). */
+async function entrar(yo = null) {
   mostrar('v-cargando');
   try {
-    YO = await pedir('/yo');
+    YO = yo || await pedir('/yo');
   } catch (e) {
     $('err-clave').textContent = e.message;
     mostrar(correo ? 'v-clave' : 'v-correo');
@@ -1272,9 +1274,9 @@ $('ld-borrar').onclick = async () => {
       return;
     }
   }
+  let yo;
   try {
-    await pedir('/yo');
-    await entrar();
+    yo = await pedir('/yo');
   } catch {
     /* La cookie no vive: se pide el correo, pero SÓLO si la persona no se
      * adelantó. Con red lenta, /yo contesta después de que ya tecleó su correo
@@ -1283,5 +1285,7 @@ $('ld-borrar').onclick = async () => {
      * del dedo. Medido en peek101 el 18-sep-2026 desde el sandbox (/yo tarda
      * ~700 ms ahí); en el runner contesta antes de que nadie teclee. */
     if (!correo) mostrar('v-correo');
+    return;
   }
+  await entrar(yo);
 })();
